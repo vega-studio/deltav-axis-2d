@@ -15,6 +15,8 @@ import {
   AutoEasingMethod,
   RectangleLayer,
   EdgeInstance,
+  SimpleEventHandler,
+  IMouseInteraction,
 } from "deltav";
 import { AxisAction } from "src/action";
 import { AxisStore } from "src/store";
@@ -28,6 +30,7 @@ export interface IAxisViewProps {
 export class AxisView extends Component<IAxisViewProps> {
   action: AxisAction;
   store: AxisStore;
+  mouseX: number = 0;
 
   constructor(props: IAxisViewProps) {
     super(props);
@@ -59,12 +62,21 @@ export class AxisView extends Component<IAxisViewProps> {
         controller: new BasicCamera2DController({
           camera: cameras.main,
           panFilter: (offset: [number, number, number]) => {
+            this.store.updateOffset(offset[0]);
             return [0, 0, 0];
           },
           scaleFilter: (scale: [number, number, number]) => {
+            //console.warn("scale", view);
+            this.store.updateScale(this.mouseX, this.store.scale + scale[0])
             return [0, 0, 0];
-          }
+          },
+          
         }),
+        simple: new SimpleEventHandler({
+          handleMouseMove: (e:IMouseInteraction) => {
+            this.mouseX = e.mouse.currentPosition[0];
+          }
+        })
       }),
       scenes: (resources, providers, cameras) => ({
         resources: [],
@@ -82,12 +94,39 @@ export class AxisView extends Component<IAxisViewProps> {
                 animate: {
                   startColor: AutoEasingMethod.easeInOutCubic(300),
                   endColor: AutoEasingMethod.easeInOutCubic(300),
+                  //start: AutoEasingMethod.easeInOutCubic(300),
+                  //end: AutoEasingMethod.easeInOutCubic(300),
+                  thickness: AutoEasingMethod.easeInOutCubic(300)
+                },
+                data: providers.lines,
+                key: `lines`,
+                type: EdgeType.LINE,
+              }),
+              createLayer(LabelLayer, {
+                data: providers.labels,
+                key: `labels `,
+                resourceKey:  resources.font.key
+              })
+            ]
+          },
+          axis: {
+            views: {
+              start: createView(View2D, {
+                camera: cameras.axis,
+                background: [0, 0, 0, 1],
+              })
+            },
+            layers: [
+              createLayer(EdgeLayer, {
+                animate: {
+                  startColor: AutoEasingMethod.easeInOutCubic(300),
+                  endColor: AutoEasingMethod.easeInOutCubic(300),
                   start: AutoEasingMethod.easeInOutCubic(300),
                   end: AutoEasingMethod.easeInOutCubic(300),
                   thickness: AutoEasingMethod.easeInOutCubic(300)
                 },
-                data: providers.lines,
-                key: `recLines`,
+                data: providers.axis,
+                key: `axis`,
                 type: EdgeType.LINE,
               })
             ]

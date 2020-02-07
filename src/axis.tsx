@@ -35,7 +35,8 @@ export class Axis extends Component<IAxisProps> {
       },
       width: window.innerWidth, // need to change
       height: window.innerHeight,
-      lineWidth: props.lineWidth
+      lineWidth: props.lineWidth,
+      labels: props.labels
     });
 
     // this.action.store = this.store;

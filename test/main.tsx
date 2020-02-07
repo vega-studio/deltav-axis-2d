@@ -9,13 +9,13 @@ function start() {
 
   ReactDOM.render(
     <Axis
-      labels={["a", "b", "c"]}
+      labels={["Dallas", "Houston", "New York", "Austin", "Los Angles", "Miami", "Boston"]}
       padding={
         {
           left: 0.02,
           right: 0.02,
           top: 0.02,
-          bottom: 0.02
+          bottom: 0.04
         }
       }
     />, containter);
