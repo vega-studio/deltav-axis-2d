@@ -4,6 +4,7 @@
     "baseUrl": ".",
     "outDir": "./dist",
     "sourceMap": true,
+    "declaration": true,
     "declarationDir": "./dist",
     "experimentalDecorators": true,
     "noImplicitAny": true,

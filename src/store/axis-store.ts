@@ -89,13 +89,13 @@ export class AxisStore {
 
     const length = this.labels.length;
 
-    if(length != 0) {
+    if (length != 0) {
       const intWid = w / length;
-      for(let i = 0; i < length; i++) {
+      for (let i = 0; i < length; i++) {
         const x = (origin[0] + (i + 0.5) * intWid) * this.scale + this.offset;
         // tickLine
         const tick = this.providers.lines.add(new EdgeInstance({
-          start:[x, origin[1]],
+          start: [x, origin[1]],
           end: [x, origin[1] + 10],
           thickness: [1, 1]
         }));
@@ -116,13 +116,13 @@ export class AxisStore {
   }
 
   layoutLabels() {
-    const length =  this.labels.length;
+    const length = this.labels.length;
     const origin = this.origin;
     const w = this.axisWidth;
     const intWid = w / length;
 
-    for(let i = 0; i < length; i++) {
-      const x = (origin[0] + (i + 0.5) * intWid) * this.scale + this.offset;
+    for (let i = 0; i < length; i++) {
+      const x = origin[0] + (i + 0.5) * intWid * this.scale + this.offset;
       const label = this.labelInstances[i];
       label.origin = [x, label.origin[1]];
       const tick = this.tickLineInstances[i];
@@ -152,20 +152,36 @@ export class AxisStore {
   }
 
   offset: number = 0;
-  scale: number = 1;  
+  scale: number = 1;
 
   // Only update viewRange , then update offset and scale
   updateScale(mouseX: number, scale: number) {
     const leftX = this.maxRange[0];
     const rightX = this.maxRange[1];
-    const pointX = Math.min(Math.max(leftX, mouseX), rightX);
+    const vl = this.viewRange[0];
+    const vr = this.viewRange[1];
+    const pointX = Math.min(Math.max(vl, mouseX), vr);
 
-    const newWidth = Math.max(this.axisWidth * scale, this.axisWidth);
     this.scale = Math.max(scale, 1);
+
+    const newWidth = this.axisWidth * this.scale;
+
     const leftWidth = (pointX - leftX) * newWidth / (rightX - leftX);
 
-    const newLeftX = mouseX - leftWidth;
-    const newRightX = newLeftX + newWidth;
+    let newLeftX = pointX - leftWidth;
+    let newRightX = newLeftX + newWidth;
+
+    if (newLeftX >= this.viewRange[0] && newRightX <= this.viewRange[1]) {
+      newLeftX = this.viewRange[0];
+      newRightX = this.viewRange[1];
+    } else if (newLeftX > this.viewRange[0]) {
+      newLeftX = this.viewRange[0];
+      newRightX = newLeftX + newWidth;
+    } else if (newRightX < this.viewRange[1]) {
+      newRightX = this.viewRange[1];
+      newLeftX = newRightX - newWidth;
+    }
+
     this.maxRange = [newLeftX, newRightX];
 
     this.offset = this.maxRange[0] - this.viewRange[0];
@@ -173,23 +189,23 @@ export class AxisStore {
   }
 
   updateOffset(offset: number) {
-    const leftX = this.viewRange[0] + offset;
-    const rightX = this.viewRange[1] + offset;
+    let leftX = this.maxRange[0] + offset;
+    let rightX = this.maxRange[1] + offset;
 
-    if (leftX > this.maxRange[0] && rightX < this.maxRange[1]) {
-      this.offset += offset;
-      this.viewRange = [leftX, rightX];
-    } else if (leftX <= this.maxRange[0]) {
-      this.offset += this.maxRange[0] - this.viewRange[0];
-      this.viewRange[0] = this.maxRange[0];
-      this.viewRange[1] = this.maxRange[0] + this.axisWidth;
-    } else if(rightX >= this.maxRange[1]) {
-      this.offset += this.maxRange[1] - this.viewRange[1];
-      this.viewRange[1] = this.maxRange[1];
-      this.viewRange[0] = this.viewRange[1] - this.axisWidth;
+    if (this.scale !== 1) {
+      if (leftX > this.viewRange[0]) {
+        leftX = this.viewRange[0];
+        rightX = leftX + this.maxRange[1] - this.maxRange[0];
+      } else if (rightX < this.viewRange[1]) {
+        rightX = this.viewRange[1];
+        leftX = rightX - (this.maxRange[1] - this.maxRange[0]);
+      }
+
+      this.maxRange = [leftX, rightX];
+      this.offset = this.maxRange[0] - this.viewRange[0];
+
+      this.layoutLabels();
     }
-
-    this.layoutLabels();
   }
 
   updateViewRange() {
