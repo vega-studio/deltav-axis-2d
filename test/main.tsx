@@ -7,9 +7,17 @@ function start() {
   const containter = document.getElementById('main');
   if (!containter) return;
 
+  const names: string[] = [];
+  const letters: string[] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l'];
+  for (let i = 0; i < 100; i++) {
+    const index1 = Math.floor(i / 12);
+    const index2 = i % 12;
+    names.push(`${letters[index1]}${letters[index2]}`);
+  }
+
   ReactDOM.render(
     <Axis
-      labels={["Dallas", "Houston", "New York", "Austin", "Los Angles", "Miami", "Boston"]}
+      labels={names}
       padding={
         {
           left: 0.02,

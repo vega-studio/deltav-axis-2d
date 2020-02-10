@@ -161,54 +161,39 @@ export class AxisStore {
     const vl = this.viewRange[0];
     const vr = this.viewRange[1];
     const pointX = Math.min(Math.max(vl, mouseX), vr);
-
     this.scale = Math.max(scale, 1);
-
     const newWidth = this.axisWidth * this.scale;
-
     const leftWidth = (pointX - leftX) * newWidth / (rightX - leftX);
-
     let newLeftX = pointX - leftWidth;
     let newRightX = newLeftX + newWidth;
 
-    if (newLeftX >= this.viewRange[0] && newRightX <= this.viewRange[1]) {
-      newLeftX = this.viewRange[0];
-      newRightX = this.viewRange[1];
-    } else if (newLeftX > this.viewRange[0]) {
-      newLeftX = this.viewRange[0];
-      newRightX = newLeftX + newWidth;
-    } else if (newRightX < this.viewRange[1]) {
-      newRightX = this.viewRange[1];
-      newLeftX = newRightX - newWidth;
-    }
-
-    this.maxRange = [newLeftX, newRightX];
-
-    this.offset = this.maxRange[0] - this.viewRange[0];
-    this.layoutLabels();
+    this.updateMaxRange(newLeftX, newRightX, newWidth);
   }
 
   updateOffset(offset: number) {
-    let leftX = this.maxRange[0] + offset;
-    let rightX = this.maxRange[1] + offset;
+    const leftX = this.maxRange[0] + offset;
+    const rightX = this.maxRange[1] + offset;
+    const width = this.maxRange[1] - this.maxRange[0];
 
-    if (this.scale !== 1) {
-      if (leftX > this.viewRange[0]) {
-        leftX = this.viewRange[0];
-        rightX = leftX + this.maxRange[1] - this.maxRange[0];
-      } else if (rightX < this.viewRange[1]) {
-        rightX = this.viewRange[1];
-        leftX = rightX - (this.maxRange[1] - this.maxRange[0]);
-      }
-
-      this.maxRange = [leftX, rightX];
-      this.offset = this.maxRange[0] - this.viewRange[0];
-
-      this.layoutLabels();
-    }
+    this.updateMaxRange(leftX, rightX, width);
   }
 
-  updateViewRange() {
+  updateMaxRange(left: number, right: number, width: number) {
+    if (left >= this.viewRange[0] && right <= this.viewRange[1]) {
+      left = this.viewRange[0];
+      right = this.viewRange[1];
+    } else if (left >= this.viewRange[0]) {
+      left = this.viewRange[0];
+      right = left + width;
+    } else if (right <= this.viewRange[1]) {
+      right = this.viewRange[1];
+      left = right - width;
+    }
 
+    this.maxRange = [left, right];
+    this.offset = this.maxRange[0] - this.viewRange[0];
+
+    console.log("")
+    this.layoutLabels();
   }
 }
