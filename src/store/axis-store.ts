@@ -18,7 +18,7 @@ export interface IAxisStoreOptions {
 
 export class AxisStore {
   // Layout mode
-  verticalLayout: boolean = false;
+  verticalLayout: boolean = true;
 
   // Shape Instances Holders
   xAxisLine: EdgeInstance;
@@ -42,14 +42,17 @@ export class AxisStore {
 
   // Label Metrics
   labelSize: number = 12;
-  // labelFont: string;
   labelColor: Color = [0.8, 0.8, 0.8, 1.0];
+  maxLabelWidth: number = 0;
 
   labels: string[];
 
   // Range
   maxRange: [number, number];
   viewRange: [number, number];
+
+  offset: number = 0;
+  scale: number = 1;
 
   providers = {
     axis: new InstanceProvider<EdgeInstance>(),
@@ -93,45 +96,119 @@ export class AxisStore {
     const length = this.labels.length;
 
     if (length != 0) {
-      const intWid = w / length;
-      for (let i = 0; i < length; i++) {
-        const x = (origin[0] + (i + 0.5) * intWid) * this.scale + this.offset;
-        // tickLine
-        const tick = this.providers.lines.add(new EdgeInstance({
-          start: [x, origin[1]],
-          end: [x, origin[1] + 10],
-          thickness: [1, 1]
-        }));
-        this.tickLineInstances.push(tick);
-        // label
-        const label = this.providers.labels.add(new LabelInstance({
-          anchor: {
-            padding: 2,
-            type: AnchorType.TopMiddle
-          },
-          color: this.labelColor,
-          fontSize: this.labelSize,
-          origin: [x, origin[1] + 10],
-          text: this.labels[i],
-        }))
-        this.labelInstances.push(label);
+      if (this.verticalLayout) {
+        const intHeight = h / length;
+
+        for (let i = 0; i < length; i++) {
+          const y = origin[1] - (i + 0.5) * intHeight * this.scale + this.offset;
+          // tickLine
+          const tick = this.providers.lines.add(new EdgeInstance({
+            start: [origin[0], y],
+            end: [origin[0] - 10, y], /// Needs a tick length
+            thickness: [1, 1]
+          }));
+          this.tickLineInstances.push(tick);
+          // label
+          const label = this.providers.labels.add(new LabelInstance({
+            anchor: {
+              padding: 10,
+              type: AnchorType.MiddleRight
+            },
+            color: this.labelColor,
+            fontSize: this.labelSize,
+            origin: [origin[0], y],
+            text: this.labels[i],
+            onReady: label => {
+              if (label.size[0] > this.maxLabelWidth) {
+
+                this.maxLabelWidth = label.size[0];
+                this.updateChartMetrics();
+                this.layoutLines();
+                this.layoutLabels();
+              }
+            }
+          }))
+          this.labelInstances.push(label);
+        }
+      } else {
+        const intWidth = w / length;
+
+        for (let i = 0; i < length; i++) {
+          const x = origin[0] + (i + 0.5) * intWidth * this.scale + this.offset;
+          // tickLine
+          const tick = this.providers.lines.add(new EdgeInstance({
+            start: [x, origin[1]],
+            end: [x, origin[1] + 10],
+            thickness: [1, 1]
+          }));
+          this.tickLineInstances.push(tick);
+          // label
+          const label = this.providers.labels.add(new LabelInstance({
+            anchor: {
+              padding: 2,
+              type: AnchorType.TopMiddle
+            },
+            color: this.labelColor,
+            fontSize: this.labelSize,
+            origin: [x, origin[1] + 10],
+            text: this.labels[i],
+          }))
+          this.labelInstances.push(label);
+        }
       }
     }
+  }
+
+  layoutLines() {
+    this.xAxisLine.start = this.origin;
+    this.xAxisLine.end = [this.origin[0] + this.axisWidth, this.origin[1]];
+    this.yAxisLine.start = this.origin;
+    this.yAxisLine.end = [this.origin[0], this.origin[1] - this.axisHeight];
   }
 
   layoutLabels() {
     const length = this.labels.length;
     const origin = this.origin;
-    const w = this.axisWidth;
-    const intWid = w / length;
 
-    for (let i = 0; i < length; i++) {
-      const x = origin[0] + (i + 0.5) * intWid * this.scale + this.offset;
-      const label = this.labelInstances[i];
-      label.origin = [x, label.origin[1]];
-      const tick = this.tickLineInstances[i];
-      tick.start = [x, tick.start[1]];
-      tick.end = [x, tick.end[1]];
+    if (this.verticalLayout) {
+      const h = this.axisHeight;
+      const intHeight = h / length;
+
+      // To be tested
+      for (let i = 0; i < length; i++) {
+        const y = origin[1] - (i + 0.5) * intHeight * this.scale - this.offset;
+        // Label
+        const label = this.labelInstances[i];
+        label.origin = [origin[0], y];
+        label.anchor = {
+          padding: 10,
+          type: AnchorType.MiddleRight
+        };
+        // Tick
+        const tick = this.tickLineInstances[i];
+        tick.start = [origin[0] - 10, y];
+        tick.end = [origin[0], y];
+      }
+    } else {
+      const w = this.axisWidth;
+      const intWidth = w / length;
+
+      for (let i = 0; i < length; i++) {
+        const x = origin[0] + (i + 0.5) * intWidth * this.scale + this.offset;
+
+        // Label
+        const label = this.labelInstances[i];
+        label.origin = [x, origin[1]];
+        label.anchor = {
+          padding: 2,
+          type: AnchorType.TopMiddle
+        };
+
+        // Tick
+        const tick = this.tickLineInstances[i];
+        tick.start = [x, origin[1]];
+        tick.end = [x, origin[1] + 10];
+      }
     }
   }
 
@@ -146,40 +223,64 @@ export class AxisStore {
     const rp = padding.right * width;
     const tp = padding.top * height;
     const bp = padding.bottom * height;
-
-    this.axisWidth = width - lp - rp;
     this.axisHeight = height - tp - bp;
-    this.origin = [lp, height - bp];
 
-    this.viewRange = [lp, lp + this.axisWidth];
-    this.maxRange = [lp, lp + this.axisWidth];
+    if (this.verticalLayout) {
+      this.axisWidth = width - lp - rp - this.maxLabelWidth;
+      this.origin = [lp + this.maxLabelWidth, height - bp];
+      this.viewRange = [bp, bp + this.axisHeight];
+      this.maxRange = [bp, bp + this.axisHeight];
+    } else {
+      this.axisWidth = width - lp - rp;
+      this.origin = [lp, height - bp];
+      this.viewRange = [lp, lp + this.axisWidth];
+      this.maxRange = [lp, lp + this.axisWidth];
+    }
   }
 
-  offset: number = 0;
-  scale: number = 1;
 
   // Only update viewRange , then update offset and scale
-  updateScale(mouseX: number, scale: number) {
-    const leftX = this.maxRange[0];
-    const rightX = this.maxRange[1];
-    const vl = this.viewRange[0];
-    const vr = this.viewRange[1];
-    const pointX = Math.min(Math.max(vl, mouseX), vr);
-    this.scale = Math.max(scale, 1);
-    const newWidth = this.axisWidth * this.scale;
-    const leftWidth = (pointX - leftX) * newWidth / (rightX - leftX);
-    let newLeftX = pointX - leftWidth;
-    let newRightX = newLeftX + newWidth;
+  updateScale(mouse: [number, number], scale: [number, number, number]) {
+    const newScale = this.scale + (this.verticalLayout ? scale[1] : scale[0]);
+    this.scale = Math.max(newScale, 1);
 
-    this.updateMaxRange(newLeftX, newRightX, newWidth);
+    if (this.verticalLayout) {
+      const downY = this.maxRange[0];
+      const upY = this.maxRange[1];
+      const vd = this.viewRange[0];
+      const vu = this.viewRange[1];
+      const pointY = Math.min(Math.max(vd, this.height - mouse[1]), vu);
+      const newHeight = this.axisHeight * this.scale;
+      const upHeight = (pointY - downY) * newHeight / (upY - downY);
+      const newDownY = pointY - upHeight;
+      const newUpY = newDownY + newHeight;
+      this.updateMaxRange(newDownY, newUpY, newHeight);
+    } else {
+      const leftX = this.maxRange[0];
+      const rightX = this.maxRange[1];
+      const vl = this.viewRange[0];
+      const vr = this.viewRange[1];
+      const pointX = Math.min(Math.max(vl, mouse[0]), vr);
+      const newWidth = this.axisWidth * this.scale;
+      const leftWidth = (pointX - leftX) * newWidth / (rightX - leftX);
+      let newLeftX = pointX - leftWidth;
+      let newRightX = newLeftX + newWidth;
+      this.updateMaxRange(newLeftX, newRightX, newWidth);
+    }
   }
 
-  updateOffset(offset: number) {
-    const leftX = this.maxRange[0] + offset;
-    const rightX = this.maxRange[1] + offset;
-    const width = this.maxRange[1] - this.maxRange[0];
-
-    this.updateMaxRange(leftX, rightX, width);
+  updateOffset(offset: [number, number, number]) {
+    if (this.verticalLayout) {
+      const downY = this.maxRange[0] - offset[1];
+      const upY = this.maxRange[1] - offset[1];
+      const height = this.maxRange[1] - this.maxRange[0];
+      this.updateMaxRange(downY, upY, height);
+    } else {
+      const leftX = this.maxRange[0] + offset[0];
+      const rightX = this.maxRange[1] + offset[0];
+      const width = this.maxRange[1] - this.maxRange[0];
+      this.updateMaxRange(leftX, rightX, width);
+    }
   }
 
   updateMaxRange(left: number, right: number, width: number) {
@@ -197,7 +298,6 @@ export class AxisStore {
     this.maxRange = [left, right];
     this.offset = this.maxRange[0] - this.viewRange[0];
 
-    console.log("")
     this.layoutLabels();
   }
 }

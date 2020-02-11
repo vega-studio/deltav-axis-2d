@@ -3,6 +3,7 @@ import { AxisStore } from "./store";
 import { AxisAction } from "./action";
 import { Color } from "deltav";
 import { AxisView } from "./view";
+import * as dat from "dat.gui";
 
 export interface IAxisProps {
   labels: string[];
@@ -25,6 +26,15 @@ export class Axis extends Component<IAxisProps> {
   action: AxisAction;
   font: string;
 
+  parameters = {
+    toggleLayout: () => {
+      this.store.verticalLayout = !this.store.verticalLayout;
+      this.store.updateChartMetrics();
+      this.store.layoutLines();
+      this.store.layoutLabels();
+    }
+  }
+
   constructor(props: IAxisProps) {
     super(props);
     this.action = new AxisAction();
@@ -43,11 +53,16 @@ export class Axis extends Component<IAxisProps> {
       labelColor: props.labelColor
     });
     this.font = props.labelFont;
-
+    this.buildConsole();
     // this.action.store = this.store;
   }
 
+  buildConsole() {
+    const ui = new dat.GUI();
+    ui.add(this.parameters, 'toggleLayout');
+  }
+
   render() {
-    return <AxisView store={this.store} action={this.action} font = {this.font} />;
+    return <AxisView store={this.store} action={this.action} font={this.font} />;
   }
 }

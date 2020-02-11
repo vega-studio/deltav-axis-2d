@@ -35,7 +35,7 @@ export interface IAxisViewProps {
 export class AxisView extends Component<IAxisViewProps> {
   action: AxisAction;
   store: AxisStore;
-  mouseX: number = 0;
+  mouse: [number, number] = [0, 0];
   font: IFontResourceOptions;
 
   constructor(props: IAxisViewProps) {
@@ -43,13 +43,13 @@ export class AxisView extends Component<IAxisViewProps> {
     this.action = props.action;
     this.store = props.store;
 
-    if(props.font) {
+    if (props.font) {
       this.font = createFont({
         dynamic: true,
         fontSource: {
           localKerningCache: false,
           size: 64,
-          family: props.font, 
+          family: props.font,
           type: FontMapGlyphType.BITMAP,
           weight: "normal"
         },
@@ -84,19 +84,19 @@ export class AxisView extends Component<IAxisViewProps> {
         controller: new BasicCamera2DController({
           camera: cameras.main,
           panFilter: (offset: [number, number, number]) => {
-            this.store.updateOffset(offset[0]);
+            this.store.updateOffset(offset);
             return [0, 0, 0];
           },
           scaleFilter: (scale: [number, number, number]) => {
             //console.warn("scale", view);
-            this.store.updateScale(this.mouseX, this.store.scale + scale[0])
+            this.store.updateScale(this.mouse, scale)
             return [0, 0, 0];
           },
-          
+
         }),
         simple: new SimpleEventHandler({
-          handleMouseMove: (e:IMouseInteraction) => {
-            this.mouseX = e.mouse.currentPosition[0];
+          handleMouseMove: (e: IMouseInteraction) => {
+            this.mouse = e.mouse.currentPosition;
           }
         })
       }),
@@ -127,7 +127,7 @@ export class AxisView extends Component<IAxisViewProps> {
               createLayer(LabelLayer, {
                 data: providers.labels,
                 key: `labels `,
-                resourceKey:  resources.font.key
+                resourceKey: resources.font.key
               })
             ]
           },

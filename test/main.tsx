@@ -7,7 +7,7 @@ function start() {
   if (!containter) return;
 
   const names: string[] = [];
-  const letters: string[] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l'];
+  const letters: string[] = ['ada', 'bda', 'ewqc', 'deee', 'eeee', 'daff', 'gdaf', 'h', 'i', 'j', 'k', 'l'];
   for (let i = 0; i < 100; i++) {
     const index1 = Math.floor(i / 12);
     const index2 = i % 12;
@@ -25,10 +25,10 @@ function start() {
           bottom: 0.04
         }
       }
-      labelFont = {"MicroSoft"}
-      labelColor = {[1, 0.5, 0, 1]}
-      labelSize = {18}
-      lineWidth = {3}
+      labelFont={"MicroSoft"}
+      labelColor={[1, 0.5, 0, 1]}
+      labelSize={18}
+      lineWidth={3}
     />, containter);
 }
 
