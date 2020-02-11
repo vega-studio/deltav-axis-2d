@@ -1,6 +1,5 @@
 import ReactDOM from "react-dom";
 import React from "react";
-import { Color } from "deltav";
 import { Axis } from "src";
 
 function start() {
@@ -26,6 +25,10 @@ function start() {
           bottom: 0.04
         }
       }
+      labelFont = {"MicroSoft"}
+      labelColor = {[1, 0.5, 0, 1]}
+      labelSize = {18}
+      lineWidth = {3}
     />, containter);
 }
 

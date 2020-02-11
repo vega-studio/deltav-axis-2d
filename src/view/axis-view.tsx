@@ -17,6 +17,10 @@ import {
   EdgeInstance,
   SimpleEventHandler,
   IMouseInteraction,
+  IFontResourceOptions,
+  createFont,
+  FontMapGlyphType,
+  TextureSize,
 } from "deltav";
 import { AxisAction } from "src/action";
 import { AxisStore } from "src/store";
@@ -25,17 +29,35 @@ import { DEFAULT_RESOURCES } from "src/types";
 export interface IAxisViewProps {
   action: AxisAction;
   store: AxisStore;
+  font?: string;
 }
 
 export class AxisView extends Component<IAxisViewProps> {
   action: AxisAction;
   store: AxisStore;
   mouseX: number = 0;
+  font: IFontResourceOptions;
 
   constructor(props: IAxisViewProps) {
     super(props);
     this.action = props.action;
     this.store = props.store;
+
+    if(props.font) {
+      this.font = createFont({
+        dynamic: true,
+        fontSource: {
+          localKerningCache: false,
+          size: 64,
+          family: props.font, 
+          type: FontMapGlyphType.BITMAP,
+          weight: "normal"
+        },
+        fontMapSize: [TextureSize._2048, TextureSize._2048]
+      })
+    } else {
+      this.font = DEFAULT_RESOURCES.font;
+    }
   }
 
   componentDidMount() {
@@ -56,7 +78,7 @@ export class AxisView extends Component<IAxisViewProps> {
         axis: new Camera2D()
       },
       resources: {
-        font: DEFAULT_RESOURCES.font
+        font: this.font
       },
       eventManagers: cameras => ({
         controller: new BasicCamera2DController({

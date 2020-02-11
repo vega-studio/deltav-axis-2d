@@ -8,6 +8,7 @@ export interface IAxisProps {
   labels: string[];
   labelFont?: string;
   labelColor?: Color;
+  labelSize?: number;
   labelHighlightColor?: Color;
   lineColor?: Color;
   lineWidth?: number;
@@ -22,6 +23,7 @@ export interface IAxisProps {
 export class Axis extends Component<IAxisProps> {
   store: AxisStore;
   action: AxisAction;
+  font: string;
 
   constructor(props: IAxisProps) {
     super(props);
@@ -36,13 +38,16 @@ export class Axis extends Component<IAxisProps> {
       width: window.innerWidth, // need to change
       height: window.innerHeight,
       lineWidth: props.lineWidth,
-      labels: props.labels
+      labels: props.labels,
+      labelSize: props.labelSize,
+      labelColor: props.labelColor
     });
+    this.font = props.labelFont;
 
     // this.action.store = this.store;
   }
 
   render() {
-    return <AxisView store={this.store} action={this.action} />;
+    return <AxisView store={this.store} action={this.action} font = {this.font} />;
   }
 }

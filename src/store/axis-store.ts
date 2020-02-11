@@ -10,9 +10,9 @@ export interface IAxisStoreOptions {
   width: number;
   height: number;
   labelColor?: Color;
-  labelfont?: string;
+  labelSize?: number;
   labelHighlightColor?: Color;
-  lineWidth?: number;
+  lineWidth: number;
   labels: string[];
 }
 
@@ -42,6 +42,7 @@ export class AxisStore {
 
   // Label Metrics
   labelSize: number = 12;
+  // labelFont: string;
   labelColor: Color = [0.8, 0.8, 0.8, 1.0];
 
   labels: string[];
@@ -62,6 +63,8 @@ export class AxisStore {
     this.padding = options.padding;
     this.lineWidth = options.lineWidth || this.lineWidth;
     this.labels = options.labels;
+    this.labelSize = options.labelSize || this.labelSize;
+    this.labelColor = options.labelColor || this.labelColor;
 
     this.init();
   }
@@ -102,13 +105,14 @@ export class AxisStore {
         this.tickLineInstances.push(tick);
         // label
         const label = this.providers.labels.add(new LabelInstance({
-          text: this.labels[i],
-          origin: [x, origin[1] + 10],
-          color: this.labelColor,
           anchor: {
             padding: 2,
             type: AnchorType.TopMiddle
-          }
+          },
+          color: this.labelColor,
+          fontSize: this.labelSize,
+          origin: [x, origin[1] + 10],
+          text: this.labels[i],
         }))
         this.labelInstances.push(label);
       }
