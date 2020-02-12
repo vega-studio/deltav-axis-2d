@@ -18,7 +18,7 @@ export interface IAxisStoreOptions {
 
 export class AxisStore {
   // Layout mode
-  verticalLayout: boolean = true;
+  verticalLayout: boolean = false;
 
   // Shape Instances Holders
   xAxisLine: EdgeInstance;
@@ -102,14 +102,15 @@ export class AxisStore {
         for (let i = 0; i < length; i++) {
           const y = origin[1] - (i + 0.5) * intHeight * this.scale + this.offset;
           // tickLine
-          const tick = this.providers.lines.add(new EdgeInstance({
+          const tick = new EdgeInstance({
             start: [origin[0], y],
             end: [origin[0] - 10, y], /// Needs a tick length
             thickness: [1, 1]
-          }));
+          });
+
           this.tickLineInstances.push(tick);
           // label
-          const label = this.providers.labels.add(new LabelInstance({
+          const label = new LabelInstance({
             anchor: {
               padding: 10,
               type: AnchorType.MiddleRight
@@ -127,8 +128,16 @@ export class AxisStore {
                 this.layoutLabels();
               }
             }
-          }))
+          });
+
           this.labelInstances.push(label);
+
+          const curY = this.height - y;
+          if (curY >= this.viewRange[0] && curY <= this.viewRange[1]) {
+            this.providers.lines.add(tick);
+            this.providers.labels.add(label)
+          }
+
         }
       } else {
         const intWidth = w / length;
@@ -136,14 +145,16 @@ export class AxisStore {
         for (let i = 0; i < length; i++) {
           const x = origin[0] + (i + 0.5) * intWidth * this.scale + this.offset;
           // tickLine
-          const tick = this.providers.lines.add(new EdgeInstance({
+          const tick = new EdgeInstance({
             start: [x, origin[1]],
             end: [x, origin[1] + 10],
             thickness: [1, 1]
-          }));
+          });
+
           this.tickLineInstances.push(tick);
+
           // label
-          const label = this.providers.labels.add(new LabelInstance({
+          const label = new LabelInstance({
             anchor: {
               padding: 2,
               type: AnchorType.TopMiddle
@@ -152,8 +163,20 @@ export class AxisStore {
             fontSize: this.labelSize,
             origin: [x, origin[1] + 10],
             text: this.labels[i],
-          }))
+            onReady: label => {
+              if (label.size[0] > this.maxLabelWidth) {
+                this.maxLabelWidth = label.size[0];
+                this.layoutLabels();
+              }
+            }
+          });
+
           this.labelInstances.push(label);
+
+          if (x >= this.viewRange[0] && x <= this.viewRange[1]) {
+            this.providers.lines.add(tick);
+            this.providers.labels.add(label);
+          }
         }
       }
     }
@@ -179,6 +202,12 @@ export class AxisStore {
         const y = origin[1] - (i + 0.5) * intHeight * this.scale - this.offset;
         // Label
         const label = this.labelInstances[i];
+        const preY = this.height - label.origin[1];
+        const curY = this.height - y;
+
+        const preIn = preY >= this.viewRange[0] && preY <= this.viewRange[1];
+        const curIn = curY >= this.viewRange[0] && curY <= this.viewRange[1];
+
         label.origin = [origin[0], y];
         label.anchor = {
           padding: 10,
@@ -188,6 +217,14 @@ export class AxisStore {
         const tick = this.tickLineInstances[i];
         tick.start = [origin[0] - 10, y];
         tick.end = [origin[0], y];
+
+        if (preIn && !curIn) {
+          this.providers.labels.remove(label);
+          this.providers.lines.remove(tick);
+        } else if (!preIn && curIn) {
+          this.providers.labels.add(label);
+          this.providers.lines.add(tick);
+        }
       }
     } else {
       const w = this.axisWidth;
@@ -195,9 +232,13 @@ export class AxisStore {
 
       for (let i = 0; i < length; i++) {
         const x = origin[0] + (i + 0.5) * intWidth * this.scale + this.offset;
-
         // Label
         const label = this.labelInstances[i];
+        const preX = label.origin[0];
+
+        const preIn = preX >= this.viewRange[0] && preX <= this.viewRange[1];
+        const curIn = x >= this.viewRange[0] && x <= this.viewRange[1];
+
         label.origin = [x, origin[1]];
         label.anchor = {
           padding: 2,
@@ -208,6 +249,16 @@ export class AxisStore {
         const tick = this.tickLineInstances[i];
         tick.start = [x, origin[1]];
         tick.end = [x, origin[1] + 10];
+
+
+        if (preIn && !curIn) {
+          this.providers.labels.remove(label);
+          this.providers.lines.remove(tick);
+        } else if (!preIn && curIn) {
+          this.providers.labels.add(label);
+          this.providers.lines.add(tick);
+        }
+
       }
     }
   }
