@@ -7,7 +7,7 @@ function start() {
   if (!containter) return;
 
   const names: string[] = [];
-  const letters: string[] = ['ada', 'bda', 'ewqc', 'deee', 'eeee', 'daff', 'gdaf', 'h', 'i', 'j', 'k', 'l'];
+  const letters: string[] = ['adabcde', 'bddadfaa', 'ewqc', 'deee', 'eeee', 'daff', 'gdaf', 'h', 'i', 'j', 'k', 'l'];
   for (let i = 0; i < 100; i++) {
     const index1 = Math.floor(i / 12);
     const index2 = i % 12;

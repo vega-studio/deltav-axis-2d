@@ -125,6 +125,10 @@ export class AxisView extends Component<IAxisViewProps> {
                 type: EdgeType.LINE,
               }),
               createLayer(LabelLayer, {
+                animate: {
+                  color: AutoEasingMethod.easeInOutCubic(300),
+                  //origin: AutoEasingMethod.easeInOutCubic(300)
+                },
                 data: providers.labels,
                 key: `labels `,
                 resourceKey: resources.font.key

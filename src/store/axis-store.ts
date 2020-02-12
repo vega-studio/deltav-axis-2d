@@ -44,6 +44,8 @@ export class AxisStore {
   labelSize: number = 12;
   labelColor: Color = [0.8, 0.8, 0.8, 1.0];
   maxLabelWidth: number = 0;
+  maxLabelHeight: number = 0;
+  maxLabelLengh: number = 10;
 
   labels: string[];
 
@@ -105,7 +107,9 @@ export class AxisStore {
           const tick = new EdgeInstance({
             start: [origin[0], y],
             end: [origin[0] - 10, y], /// Needs a tick length
-            thickness: [1, 1]
+            thickness: [1, 1],
+            startColor: [1, 1, 1, 0.5],
+            endColor: [1, 1, 1, 0.5]
           });
 
           this.tickLineInstances.push(tick);
@@ -121,10 +125,14 @@ export class AxisStore {
             text: this.labels[i],
             onReady: label => {
               if (label.size[0] > this.maxLabelWidth) {
-
                 this.maxLabelWidth = label.size[0];
                 this.updateChartMetrics();
                 this.layoutLines();
+                this.layoutLabels();
+              }
+
+              if (label.size[1] > this.maxLabelHeight) {
+                this.maxLabelHeight = label.size[0];
                 this.layoutLabels();
               }
             }
@@ -148,22 +156,30 @@ export class AxisStore {
           const tick = new EdgeInstance({
             start: [x, origin[1]],
             end: [x, origin[1] + 10],
-            thickness: [1, 1]
+            thickness: [this.lineWidth, this.lineWidth],
           });
 
           this.tickLineInstances.push(tick);
 
+          const labelText = this.labels[i];
+          const text = labelText.length > this.maxLabelLengh ?
+            labelText.substr(0, this.maxLabelLengh) : labelText;
+
           // label
           const label = new LabelInstance({
             anchor: {
-              padding: 2,
+              padding: 10,
               type: AnchorType.TopMiddle
             },
-            color: this.labelColor,
+            color: [this.labelColor[0], this.labelColor[1], this.labelColor[2], 0],
             fontSize: this.labelSize,
             origin: [x, origin[1] + 10],
-            text: this.labels[i],
+            text,
             onReady: label => {
+              if (label.size[1] > this.maxLabelHeight) {
+                this.maxLabelHeight = label.size[1];
+              }
+
               if (label.size[0] > this.maxLabelWidth) {
                 this.maxLabelWidth = label.size[0];
                 this.layoutLabels();
@@ -189,6 +205,8 @@ export class AxisStore {
     this.yAxisLine.end = [this.origin[0], this.origin[1] - this.axisHeight];
   }
 
+  interval: number = 1;
+
   layoutLabels() {
     const length = this.labels.length;
     const origin = this.origin;
@@ -196,6 +214,14 @@ export class AxisStore {
     if (this.verticalLayout) {
       const h = this.axisHeight;
       const intHeight = h / length;
+
+      let intH = intHeight * this.scale;
+      this.interval = 1;
+
+      while (intH <= this.maxLabelHeight) {
+        intH *= 2;
+        this.interval *= 2;
+      }
 
       // To be tested
       for (let i = 0; i < length; i++) {
@@ -218,6 +244,50 @@ export class AxisStore {
         tick.start = [origin[0] - 10, y];
         tick.end = [origin[0], y];
 
+        if (i % this.interval === 0) {
+          label.color = [
+            label.color[0],
+            label.color[1],
+            label.color[2],
+            1
+          ];
+
+          tick.startColor = [
+            tick.startColor[0],
+            tick.startColor[1],
+            tick.startColor[2],
+            1
+          ];
+
+          tick.endColor = [
+            tick.endColor[0],
+            tick.endColor[1],
+            tick.endColor[2],
+            1
+          ];
+        } else {
+          label.color = [
+            label.color[0],
+            label.color[1],
+            label.color[2],
+            0
+          ];
+
+          tick.startColor = [
+            tick.startColor[0],
+            tick.startColor[1],
+            tick.startColor[2],
+            0.5
+          ];
+
+          tick.endColor = [
+            tick.endColor[0],
+            tick.endColor[1],
+            tick.endColor[2],
+            0.5
+          ];
+        }
+
         if (preIn && !curIn) {
           this.providers.labels.remove(label);
           this.providers.lines.remove(tick);
@@ -230,6 +300,14 @@ export class AxisStore {
       const w = this.axisWidth;
       const intWidth = w / length;
 
+      let intW = intWidth * this.scale;
+      this.interval = 1;
+
+      while (intW <= this.maxLabelWidth) {
+        intW *= 2;
+        this.interval *= 2;
+      }
+
       for (let i = 0; i < length; i++) {
         const x = origin[0] + (i + 0.5) * intWidth * this.scale + this.offset;
         // Label
@@ -241,7 +319,7 @@ export class AxisStore {
 
         label.origin = [x, origin[1]];
         label.anchor = {
-          padding: 2,
+          padding: 10,
           type: AnchorType.TopMiddle
         };
 
@@ -250,6 +328,49 @@ export class AxisStore {
         tick.start = [x, origin[1]];
         tick.end = [x, origin[1] + 10];
 
+        if (i % this.interval === 0) {
+          label.color = [
+            label.color[0],
+            label.color[1],
+            label.color[2],
+            1
+          ];
+
+          tick.startColor = [
+            tick.startColor[0],
+            tick.startColor[1],
+            tick.startColor[2],
+            1
+          ];
+
+          tick.endColor = [
+            tick.endColor[0],
+            tick.endColor[1],
+            tick.endColor[2],
+            1
+          ];
+        } else {
+          label.color = [
+            label.color[0],
+            label.color[1],
+            label.color[2],
+            0
+          ];
+
+          tick.startColor = [
+            tick.startColor[0],
+            tick.startColor[1],
+            tick.startColor[2],
+            0.5
+          ];
+
+          tick.endColor = [
+            tick.endColor[0],
+            tick.endColor[1],
+            tick.endColor[2],
+            0.5
+          ];
+        }
 
         if (preIn && !curIn) {
           this.providers.labels.remove(label);
