@@ -4,15 +4,28 @@ import { AxisAction } from "./action";
 import { Color } from "deltav";
 import { AxisView } from "./view";
 import * as dat from "dat.gui";
+import { AxisDataType } from "./types";
 
 export interface IAxisProps {
-  labels: string[];
+  type: AxisDataType;
+
+  labels?: string[];
+
+  startDate?: Date | string;
+  endDate?: Date | string
+
+  numberRange?: [number, number];
+  numberGap?: number;
+
   labelFont?: string;
   labelColor?: Color;
   labelSize?: number;
   labelHighlightColor?: Color;
+  labelPadding?: number;
   lineColor?: Color;
   lineWidth?: number;
+  tickWidth?: number;
+  tickLength?: number;
   padding: {
     left: number;
     right: number;
@@ -48,9 +61,18 @@ export class Axis extends Component<IAxisProps> {
       width: window.innerWidth, // need to change
       height: window.innerHeight,
       lineWidth: props.lineWidth,
-      labels: props.labels,
+      tickWidth: props.tickWidth,
+      tickLength: props.tickLength,
       labelSize: props.labelSize,
-      labelColor: props.labelColor
+      labelColor: props.labelColor,
+      labelPadding: props.labelPadding,
+
+      type: props.type,
+      labels: props.labels,
+      startDate: props.startDate,
+      endDate: props.endDate,
+      numberRange: props.numberRange,
+      numberGap: props.numberGap
     });
     this.font = props.labelFont;
     this.buildConsole();

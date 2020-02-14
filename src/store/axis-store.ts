@@ -1,4 +1,8 @@
 import { InstanceProvider, EdgeInstance, LabelInstance, Color, AnchorType } from "deltav";
+import { AxisDataType } from "src/types";
+import { dateLevel, travelDates, getIntervalLengths } from "src/util/dateUtil";
+
+const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export interface IAxisStoreOptions {
   padding: {
@@ -12,13 +16,29 @@ export interface IAxisStoreOptions {
   labelColor?: Color;
   labelSize?: number;
   labelHighlightColor?: Color;
-  lineWidth: number;
-  labels: string[];
+  labelPadding?: number;
+
+  lineWidth?: number;
+  tickWidth?: number;
+  tickLength?: number;
+
+  type: AxisDataType;
+
+  labels?: string[];
+
+  startDate?: Date | string;
+  endDate?: Date | string
+
+  numberRange?: [number, number];
+  numberGap?: number;
 }
 
 export class AxisStore {
   // Layout mode
   verticalLayout: boolean = false;
+
+  // data type
+  type: AxisDataType;
 
   // Shape Instances Holders
   xAxisLine: EdgeInstance;
@@ -33,21 +53,27 @@ export class AxisStore {
   axisHeight: number;
   origin: [number, number];
   lineWidth: number = 1;
+  tickWidth: number = 1;
+  tickLength: number = 10;
   padding: {
     left: number;
     right: number;
     top: number;
     bottom: number;
-  }
+  };
+
 
   // Label Metrics
   labelSize: number = 12;
   labelColor: Color = [0.8, 0.8, 0.8, 1.0];
+  labelPadding: number = 10;
   maxLabelWidth: number = 0;
   maxLabelHeight: number = 0;
-  maxLabelLengh: number = 10;
+  maxLabelLengh: number = 15;
 
   labels: string[];
+
+  dates: dateLevel[];
 
   // Range
   maxRange: [number, number];
@@ -67,10 +93,14 @@ export class AxisStore {
     this.height = options.height;
     this.padding = options.padding;
     this.lineWidth = options.lineWidth || this.lineWidth;
-    this.labels = options.labels;
+    this.tickWidth = options.tickWidth || this.tickWidth;
+    this.tickLength = options.tickLength || this.tickLength;
+
     this.labelSize = options.labelSize || this.labelSize;
     this.labelColor = options.labelColor || this.labelColor;
-
+    this.labelPadding = options.labelPadding || this.labelPadding;
+    this.type = options.type;
+    this.labels = this.generateLabelTexts(options);
     this.init();
   }
 
@@ -80,6 +110,9 @@ export class AxisStore {
     const w = this.axisWidth;
     const h = this.axisHeight;
     const lineWidth = this.lineWidth;
+    const tickLength = this.tickLength;
+    const tickWidth = this.tickWidth;
+    const labelPadding = this.labelPadding;
 
     // x direction Line
     this.xAxisLine = this.providers.axis.add(new EdgeInstance({
@@ -106,8 +139,8 @@ export class AxisStore {
           // tickLine
           const tick = new EdgeInstance({
             start: [origin[0], y],
-            end: [origin[0] - 10, y], /// Needs a tick length
-            thickness: [1, 1],
+            end: [origin[0] - tickLength, y], /// Needs a tick length
+            thickness: [tickWidth, tickWidth],
             startColor: [1, 1, 1, 0.5],
             endColor: [1, 1, 1, 0.5]
           });
@@ -116,7 +149,7 @@ export class AxisStore {
           // label
           const label = new LabelInstance({
             anchor: {
-              padding: 10,
+              padding: labelPadding,
               type: AnchorType.MiddleRight
             },
             color: this.labelColor,
@@ -155,8 +188,10 @@ export class AxisStore {
           // tickLine
           const tick = new EdgeInstance({
             start: [x, origin[1]],
-            end: [x, origin[1] + 10],
-            thickness: [this.lineWidth, this.lineWidth],
+            end: [x, origin[1] + tickLength],
+            thickness: [tickWidth, tickWidth],
+            startColor: [1, 1, 1, 0.5],
+            endColor: [1, 1, 1, 0.5]
           });
 
           this.tickLineInstances.push(tick);
@@ -168,7 +203,7 @@ export class AxisStore {
           // label
           const label = new LabelInstance({
             anchor: {
-              padding: 10,
+              padding: labelPadding,
               type: AnchorType.TopMiddle
             },
             color: [this.labelColor[0], this.labelColor[1], this.labelColor[2], 0],
@@ -198,6 +233,93 @@ export class AxisStore {
     }
   }
 
+  generateLabelTexts(options: IAxisStoreOptions) {
+    const type = options.type;
+
+    if (type === AxisDataType.LABEL) {
+      if (!options.labels) {
+        console.error("With type LABEL, labels must be set.");
+        return null;
+      }
+
+      return options.labels;
+    }
+
+    if (type === AxisDataType.DATE) {
+      if (!options.startDate || !options.endDate) {
+        console.error("With type DATE, both startDate and endDate must be be set.");
+        return null;
+      }
+
+      return this.generateDateLabels(options.startDate, options.endDate);
+    }
+
+
+    if (!options.numberRange) {
+      console.error("With type NUMBER, both numberRange must be be set.");
+      return null;
+    }
+
+    return this.generateNumberLabels(options.numberRange, options.numberGap);
+
+  }
+
+  dateIntevalLengths: number[];
+
+  generateDateLabels(startDate: string | Date, endDate: string | Date) {
+    const sd = typeof startDate === "string" ? new Date(startDate) : startDate;
+    const ed = typeof endDate === "string" ? new Date(endDate) : endDate;
+    this.dateIntevalLengths = getIntervalLengths(sd, ed);
+    const dates: dateLevel[] = [];
+    travelDates(sd, ed, dates);
+    this.dates = dates;
+    const labelTexts: string[] = [];
+    const firstDays: dateLevel[] = [];
+
+    dates.forEach((date, i) => {
+      if (i === 0 || i === dates.length - 1) {
+        labelTexts.push(`${date.year} ${monthNames[date.month]} ${date.day}`)
+
+      } else {
+        if (date.month === 0 && date.day === 1) {
+          labelTexts.push(`${date.year} ${monthNames[date.month]}`);
+          firstDays.push(date);
+        } else if (date.day === 1) {
+          labelTexts.push(`${monthNames[date.month]} ${date.day}`);
+        } else {
+          labelTexts.push(`${date.day}`);
+        }
+      }
+    })
+
+    let dl = Math.floor(Math.log2(firstDays.length));
+    let daysInAYear = this.dateIntevalLengths[this.dateIntevalLengths.length - 1];
+
+    while (dl > 0) {
+      const delta = Math.pow(2, dl);
+      for (let i = 0; i < firstDays.length; i += delta) {
+        firstDays[i].level++;
+      }
+      daysInAYear *= 2;
+      this.dateIntevalLengths.push(daysInAYear);
+      dl--;
+    }
+
+
+    return labelTexts;
+  }
+
+  generateNumberLabels(numberRange: [number, number], numberGap?: number) {
+    let gap = numberGap || 1;
+    const labels: string[] = [];
+
+    for (let i = numberRange[0]; i <= numberRange[1]; i += gap) {
+      labels.push(i.toString());
+    }
+
+    return labels;
+  }
+
   layoutLines() {
     this.xAxisLine.start = this.origin;
     this.xAxisLine.end = [this.origin[0] + this.axisWidth, this.origin[1]];
@@ -210,18 +332,31 @@ export class AxisStore {
   layoutLabels() {
     const length = this.labels.length;
     const origin = this.origin;
+    const tickLength = this.tickLength;
+    const labelPadding = this.labelPadding;
 
     if (this.verticalLayout) {
       const h = this.axisHeight;
       const intHeight = h / length;
 
       let intH = intHeight * this.scale;
-      this.interval = 1;
+      let level = 0;
+      if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
+        this.interval = 1;
 
-      while (intH <= this.maxLabelHeight) {
-        intH *= 2;
-        this.interval *= 2;
+        while (intH <= this.maxLabelHeight) {
+          intH *= 2;
+          this.interval *= 2;
+        }
+      } else if (this.type === AxisDataType.DATE) {
+        this.interval = this.dateIntevalLengths[level];
+
+        while (this.interval * intH <= this.maxLabelHeight) {
+          level++;
+          this.interval = this.dateIntevalLengths[level];
+        }
       }
+
 
       // To be tested
       for (let i = 0; i < length; i++) {
@@ -236,15 +371,17 @@ export class AxisStore {
 
         label.origin = [origin[0], y];
         label.anchor = {
-          padding: 10,
+          padding: this.labelPadding,
           type: AnchorType.MiddleRight
         };
         // Tick
         const tick = this.tickLineInstances[i];
-        tick.start = [origin[0] - 10, y];
+        tick.start = [origin[0] - tickLength, y];
         tick.end = [origin[0], y];
 
-        if (i % this.interval === 0) {
+        if ((this.type === AxisDataType.LABEL && i % this.interval === 0) ||
+          (this.type === AxisDataType.NUMBER && i % this.interval === 0) ||
+          (this.type === AxisDataType.DATE && this.dates[i].level >= level)) {
           label.color = [
             label.color[0],
             label.color[1],
@@ -301,11 +438,22 @@ export class AxisStore {
       const intWidth = w / length;
 
       let intW = intWidth * this.scale;
-      this.interval = 1;
+      let level = 0;
 
-      while (intW <= this.maxLabelWidth) {
-        intW *= 2;
-        this.interval *= 2;
+      if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
+        this.interval = 1;
+        while (intW <= this.maxLabelWidth) {
+          intW *= 2;
+          this.interval *= 2;
+        }
+      } else if (this.type === AxisDataType.DATE) {
+        this.interval = this.dateIntevalLengths[level];
+
+        while (this.interval * intW <= this.maxLabelWidth) {
+          level++;
+          this.interval = this.dateIntevalLengths[level];
+        }
+
       }
 
       for (let i = 0; i < length; i++) {
@@ -319,16 +467,18 @@ export class AxisStore {
 
         label.origin = [x, origin[1]];
         label.anchor = {
-          padding: 10,
+          padding: this.labelPadding,
           type: AnchorType.TopMiddle
         };
 
         // Tick
         const tick = this.tickLineInstances[i];
         tick.start = [x, origin[1]];
-        tick.end = [x, origin[1] + 10];
+        tick.end = [x, origin[1] + tickLength];
 
-        if (i % this.interval === 0) {
+        if ((this.type === AxisDataType.LABEL && i % this.interval === 0) ||
+          (this.type === AxisDataType.NUMBER && i % this.interval === 0) ||
+          (this.type === AxisDataType.DATE && this.dates[i].level >= level)) {
           label.color = [
             label.color[0],
             label.color[1],

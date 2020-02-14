@@ -24,3 +24,9 @@ export const DEFAULT_RESOURCES = {
     fontMapSize: [TextureSize._2048, TextureSize._2048]
   })
 };
+
+export enum AxisDataType {
+  DATE,
+  NUMBER,
+  LABEL
+}
