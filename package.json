@@ -1,5 +1,5 @@
 {
-  "name": "axis-component",
+  "name": "deltav-axis-2d",
   "version": "1.0.0",
   "description": "",
   "main": "dist/main.js",
@@ -10,7 +10,15 @@
     "release": "node scripts/release.js"
   },
   "keywords": [],
-  "author": "heroyy1989 <heryoyo1989@gmail.com>",
+  "author": {
+    "name": "Vega Studio",
+    "email": "opensource@vega.studio",
+    "url": "http://vega.studio"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vega-studio/deltav"
+  },
   "license": "MIT",
   "devDependencies": {
     "@babel/core": "7.8.3",
