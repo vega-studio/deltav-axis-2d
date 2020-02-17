@@ -33,14 +33,10 @@ function start() {
   ReactDOM.render(
     <Axis
       labels={names}
-      padding={
-        {
-          left: 0.02,
-          right: 0.02,
-          top: 0.02,
-          bottom: 0.04
-        }
-      }
+      x={300}
+      y={800}
+      width={1000}
+      height={250}
       labelFont={"MicroSoft"}
       labelColor={[1, 0.5, 0, 1]}
       labelSize={18}

@@ -26,12 +26,10 @@ export interface IAxisProps {
   lineWidth?: number;
   tickWidth?: number;
   tickLength?: number;
-  padding: {
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-  }
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export class Axis extends Component<IAxisProps> {
@@ -41,10 +39,7 @@ export class Axis extends Component<IAxisProps> {
 
   parameters = {
     toggleLayout: () => {
-      this.store.verticalLayout = !this.store.verticalLayout;
-      this.store.updateChartMetrics();
-      this.store.layoutLines();
-      this.store.layoutLabels();
+      this.store.changeAxis();
     }
   }
 
@@ -52,14 +47,9 @@ export class Axis extends Component<IAxisProps> {
     super(props);
     this.action = new AxisAction();
     this.store = new AxisStore({
-      padding: {
-        left: props.padding.left,
-        right: props.padding.right,
-        top: props.padding.top,
-        bottom: props.padding.bottom
-      },
-      width: window.innerWidth, // need to change
-      height: window.innerHeight,
+      origin: [props.x, props.y],
+      width: props.width,
+      height: props.height,
       lineWidth: props.lineWidth,
       tickWidth: props.tickWidth,
       tickLength: props.tickLength,
