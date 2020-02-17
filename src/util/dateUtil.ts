@@ -97,7 +97,6 @@ function travelInAMonth(
 ) {
   for (let day = startDay; day <= endDay; day++) {
     let level = getLevel(year, month, day);
-    // const label = `Year ${year} Month ${monthNames[month]} Day ${day} Level ${level}`;
     labels.push({
       year,
       month,
@@ -216,7 +215,6 @@ export function getLength(start: Date, end: Date) {
 }
 
 // get interval lengths
-
 export function getIntervalLengths(start: Date, end: Date) {
   const startYear = start.getFullYear();
   const endYear = end.getFullYear();

@@ -1,32 +1,9 @@
-import {
-  createAtlas,
-  createFont,
-  WebGLStat,
-  TextureSize,
-  FontMapGlyphType
-} from "deltav";
-
-export const DEFAULT_RESOURCES = {
-  atlas: createAtlas({
-    height: Math.min(WebGLStat.MAX_TEXTURE_SIZE, TextureSize._4096),
-    key: "atlas",
-    width: Math.min(WebGLStat.MAX_TEXTURE_SIZE, TextureSize._4096)
-  }),
-  font: createFont({
-    dynamic: true,
-    fontSource: {
-      localKerningCache: false,
-      size: 64,
-      family: "Lucida Grande",
-      type: FontMapGlyphType.BITMAP,
-      weight: "normal"
-    },
-    fontMapSize: [TextureSize._2048, TextureSize._2048]
-  })
-};
-
 export enum AxisDataType {
   DATE,
   NUMBER,
   LABEL
 }
+
+export type Vec2 = [number, number];
+export type Vec3 = [number, number, number];
+export type Color = [number, number, number, number];

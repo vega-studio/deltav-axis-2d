@@ -22,18 +22,21 @@ const MODE = IS_PRODUCTION ? 'production' : 'development';
 
 let library;
 let libraryTarget;
+let externals = [];
+let entry = 'test';
+let path = resolve(__dirname, 'build');
 
 if (IS_PRODUCTION) {
+  console.log('Producing Production Distribution Bundle');
+  entry = 'src';
+  path = resolve(__dirname, 'dist');
   library = 'axis-component';
   libraryTarget = 'umd';
+
+  externals = [
+    'deltav'
+  ];
 }
-
-let entry = 'src';
-if (IS_DEVELOPMENT) entry = 'test';
-
-let path = resolve(__dirname, 'build');
-if (IS_PRODUCTION) path = resolve(__dirname, 'dist');
-
 
 module.exports = {
   mode: MODE,
@@ -67,5 +70,6 @@ module.exports = {
   },
   resolveLoader: {
     modules: ['node_modules']
-  }
+  },
+  externals
 };

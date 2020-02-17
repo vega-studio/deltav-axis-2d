@@ -1,5 +1,5 @@
 import { InstanceProvider, EdgeInstance, LabelInstance, Color, AnchorType } from "deltav";
-import { AxisDataType } from "src/types";
+import { AxisDataType, Vec2, Vec3 } from "src/types";
 import { dateLevel, travelDates, getIntervalLengths } from "src/util/dateUtil";
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -8,58 +8,44 @@ export interface IAxisStoreOptions {
   origin: [number, number];
   width: number;
   height: number;
+  providers?: {
+    ticks?: InstanceProvider<EdgeInstance>,
+    labels?: InstanceProvider<LabelInstance>
+  };
   labelColor?: Color;
   labelSize?: number;
   labelHighlightColor?: Color;
   labelPadding?: number;
-
-  lineWidth?: number;
   tickWidth?: number;
   tickLength?: number;
-
   type: AxisDataType;
-
   labels?: string[];
-
   startDate?: Date | string;
   endDate?: Date | string
-
-  numberRange?: [number, number];
+  numberRange?: Vec2;
   numberGap?: number;
 }
 
 export class AxisStore {
   // Layout mode
   verticalLayout: boolean = true;
-
   axisChanged: boolean = false;
 
   // data type
   type: AxisDataType;
 
   // Shape Instances Holders
-  xAxisLine: EdgeInstance;
-  yAxisLine: EdgeInstance;
   labelInstances: LabelInstance[] = [];
   tickLineInstances: EdgeInstance[] = [];
 
   // Axis Metrics
   width: number;
   height: number;
-  // axisWidth: number;
-  // axisHeight: number;
-  origin: [number, number];
-  lineWidth: number = 1;
+  axisWidth: number;
+  axisHeight: number;
+  origin: Vec2;
   tickWidth: number = 1;
   tickLength: number = 10;
-
-  /*padding: {
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-  };*/
-
 
   // Label Metrics
   labelSize: number = 12;
@@ -74,31 +60,36 @@ export class AxisStore {
   dates: dateLevel[];
 
   // Range
-  maxRange: [number, number];
-  viewRange: [number, number];
+  maxRange: Vec2;
+  viewRange: Vec2;
 
   offset: number = 0;
   scale: number = 1;
 
+  // Interval info
+  interval: number = 1;
+  dateIntevalLengths: number[];
+
+
   providers = {
-    axis: new InstanceProvider<EdgeInstance>(),
-    lines: new InstanceProvider<EdgeInstance>(),
+    ticks: new InstanceProvider<EdgeInstance>(),
     labels: new InstanceProvider<LabelInstance>()
   }
 
   constructor(options: IAxisStoreOptions) {
-    this.width = options.width;
-    this.height = options.height;
     this.origin = options.origin;
-    this.lineWidth = options.lineWidth || this.lineWidth;
+    this.width = options.width || 100;
+    this.height = options.height || 100;
     this.tickWidth = options.tickWidth || this.tickWidth;
     this.tickLength = options.tickLength || this.tickLength;
-
     this.labelSize = options.labelSize || this.labelSize;
     this.labelColor = options.labelColor || this.labelColor;
     this.labelPadding = options.labelPadding || this.labelPadding;
     this.type = options.type;
     this.labels = this.generateLabelTexts(options);
+
+    Object.assign(this.providers, options.providers);
+
     this.init();
   }
 
@@ -107,25 +98,9 @@ export class AxisStore {
     const origin = this.origin;
     const w = this.width;
     const h = this.height;
-    const lineWidth = this.lineWidth;
     const tickLength = this.tickLength;
     const tickWidth = this.tickWidth;
     const labelPadding = this.labelPadding;
-
-    // x direction Line
-    this.xAxisLine = this.providers.axis.add(new EdgeInstance({
-      start: origin,
-      end: [origin[0] + w, origin[1]],
-      thickness: [lineWidth, lineWidth]
-    }));
-
-    // y direction Line
-    this.yAxisLine = this.providers.axis.add(new EdgeInstance({
-      start: origin,
-      end: [origin[0], origin[1] - h],
-      thickness: [lineWidth, lineWidth]
-    }));
-
     const length = this.labels.length;
 
     if (length != 0) {
@@ -154,10 +129,11 @@ export class AxisStore {
             fontSize: this.labelSize,
             origin: [origin[0], y],
             text: this.labels[i],
+
             onReady: label => {
               if (label.size[0] > this.maxLabelWidth) {
                 this.maxLabelWidth = label.size[0];
-                this.layoutLines();
+                this.updateChartMetrics();
                 this.layoutLabels();
               }
 
@@ -170,12 +146,11 @@ export class AxisStore {
 
           this.labelInstances.push(label);
 
-          const curY = window.innerHeight - y; //this.height - y + origin[1];
-          console.warn("curY", curY, "viewRange", this.viewRange[0], this.viewRange[1]);
+          const curY = window.innerHeight - y;
+
           if (curY >= this.viewRange[0] && curY <= this.viewRange[1]) {
-            // console.warn("added to viewrange");
-            this.providers.lines.add(tick);
-            this.providers.labels.add(label);
+            this.providers.ticks.add(tick);
+            this.providers.labels.add(label)
           }
 
         }
@@ -224,7 +199,7 @@ export class AxisStore {
           this.labelInstances.push(label);
 
           if (x >= this.viewRange[0] && x <= this.viewRange[1]) {
-            this.providers.lines.add(tick);
+            this.providers.ticks.add(tick);
             this.providers.labels.add(label);
           }
         }
@@ -255,15 +230,13 @@ export class AxisStore {
 
 
     if (!options.numberRange) {
-      console.error("With type NUMBER, both numberRange must be be set.");
+      console.error("With type NUMBER, numberRange must be be set.");
       return null;
     }
 
     return this.generateNumberLabels(options.numberRange, options.numberGap);
 
   }
-
-  dateIntevalLengths: number[];
 
   generateDateLabels(startDate: string | Date, endDate: string | Date) {
     const sd = typeof startDate === "string" ? new Date(startDate) : startDate;
@@ -304,11 +277,10 @@ export class AxisStore {
       dl--;
     }
 
-
     return labelTexts;
   }
 
-  generateNumberLabels(numberRange: [number, number], numberGap?: number) {
+  generateNumberLabels(numberRange: Vec2, numberGap?: number) {
     let gap = numberGap || 1;
     const labels: string[] = [];
 
@@ -326,15 +298,6 @@ export class AxisStore {
     this.layoutLabels();
     this.axisChanged = false;
   }
-
-  layoutLines() {
-    this.xAxisLine.start = this.origin;
-    this.xAxisLine.end = [this.origin[0] + this.width, this.origin[1]];
-    this.yAxisLine.start = this.origin;
-    this.yAxisLine.end = [this.origin[0], this.origin[1] - this.height];
-  }
-
-  interval: number = 1;
 
   layoutLabels() {
     const length = this.labels.length;
@@ -355,7 +318,6 @@ export class AxisStore {
           intH *= 2;
           this.interval *= 2;
         }
-        console.warn("intH", intH, "maxHeight", this.maxLabelHeight, "interval", this.interval);
       } else if (this.type === AxisDataType.DATE) {
         this.interval = this.dateIntevalLengths[level];
 
@@ -379,7 +341,7 @@ export class AxisStore {
 
         label.origin = [origin[0], y];
         label.anchor = {
-          padding: this.labelPadding,
+          padding: labelPadding,
           type: AnchorType.MiddleRight
         };
         // Tick
@@ -433,14 +395,12 @@ export class AxisStore {
           ];
         }
 
-        console.warn("axis changed", this.axisChanged);
-
         if ((preIn || this.axisChanged) && !curIn) {
           this.providers.labels.remove(label);
-          this.providers.lines.remove(tick);
+          this.providers.ticks.remove(tick);
         } else if ((!preIn || this.axisChanged) && curIn) {
           this.providers.labels.add(label);
-          this.providers.lines.add(tick);
+          this.providers.ticks.add(tick);
         }
       }
     } else {
@@ -477,7 +437,7 @@ export class AxisStore {
 
         label.origin = [x, origin[1]];
         label.anchor = {
-          padding: this.labelPadding,
+          padding: labelPadding,
           type: AnchorType.TopMiddle
         };
 
@@ -532,15 +492,12 @@ export class AxisStore {
           ];
         }
 
-        console.warn("axis changed", this.axisChanged);
-
-
         if ((preIn || this.axisChanged) && !curIn) {
           this.providers.labels.remove(label);
-          this.providers.lines.remove(tick);
+          this.providers.ticks.remove(tick);
         } else if ((!preIn || this.axisChanged) && curIn) {
           this.providers.labels.add(label);
-          this.providers.lines.add(tick);
+          this.providers.ticks.add(tick);
         }
 
       }
@@ -554,15 +511,7 @@ export class AxisStore {
       height
     } = this;
 
-    /*const lp = padding.left * width;
-    const rp = padding.right * width;
-    const tp = padding.top * height;
-    const bp = padding.bottom * height;*/
-    // this.axisHeight = height - tp - bp;
-
     if (this.verticalLayout) {
-      // this.axisWidth = width - lp - rp - this.maxLabelWidth;
-      // this.origin = [lp + this.maxLabelWidth, height - bp];
       this.viewRange = [
         window.innerHeight - origin[1],
         window.innerHeight - origin[1] + height
@@ -572,18 +521,16 @@ export class AxisStore {
         window.innerHeight - origin[1] + height
       ];
     } else {
-      // this.axisWidth = width - lp - rp;
-      // this.origin = [lp, height - bp];
       this.viewRange = [origin[0], origin[0] + width];
       this.maxRange = [origin[0], origin[0] + width];
     }
 
+    this.scale = 1;
     this.offset = this.maxRange[0] - this.viewRange[0];
   }
 
-
   // Only update viewRange , then update offset and scale
-  updateScale(mouse: [number, number], scale: [number, number, number]) {
+  updateScale(mouse: Vec2, scale: Vec3) {
     const newScale = this.scale + (this.verticalLayout ? scale[1] : scale[0]);
     this.scale = Math.max(newScale, 1);
 
@@ -612,7 +559,7 @@ export class AxisStore {
     }
   }
 
-  updateOffset(offset: [number, number, number]) {
+  updateOffset(offset: Vec3) {
     if (this.verticalLayout) {
       const downY = this.maxRange[0] - offset[1];
       const upY = this.maxRange[1] - offset[1];
