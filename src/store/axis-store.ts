@@ -1,5 +1,5 @@
 import { InstanceProvider, EdgeInstance, LabelInstance, Color, AnchorType } from "deltav";
-import { AxisDataType } from "src/types";
+import { AxisDataType, Vec2, Vec3 } from "src/types";
 import { dateLevel, travelDates, getIntervalLengths } from "src/util/dateUtil";
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -11,8 +11,12 @@ export interface IAxisStoreOptions {
     top: number;
     bottom: number;
   },
-  width: number;
-  height: number;
+  providers?: {
+    ticks?: InstanceProvider<EdgeInstance>,
+    labels?: InstanceProvider<LabelInstance>
+  };
+  width?: number;
+  height?: number;
   labelColor?: Color;
   labelSize?: number;
   labelHighlightColor?: Color;
@@ -29,7 +33,7 @@ export interface IAxisStoreOptions {
   startDate?: Date | string;
   endDate?: Date | string
 
-  numberRange?: [number, number];
+  numberRange?: Vec2;
   numberGap?: number;
 }
 
@@ -41,8 +45,6 @@ export class AxisStore {
   type: AxisDataType;
 
   // Shape Instances Holders
-  xAxisLine: EdgeInstance;
-  yAxisLine: EdgeInstance;
   labelInstances: LabelInstance[] = [];
   tickLineInstances: EdgeInstance[] = [];
 
@@ -51,7 +53,7 @@ export class AxisStore {
   height: number;
   axisWidth: number;
   axisHeight: number;
-  origin: [number, number];
+  origin: Vec2;
   lineWidth: number = 1;
   tickWidth: number = 1;
   tickLength: number = 10;
@@ -76,21 +78,20 @@ export class AxisStore {
   dates: dateLevel[];
 
   // Range
-  maxRange: [number, number];
-  viewRange: [number, number];
+  maxRange: Vec2;
+  viewRange: Vec2;
 
   offset: number = 0;
   scale: number = 1;
 
   providers = {
-    axis: new InstanceProvider<EdgeInstance>(),
-    lines: new InstanceProvider<EdgeInstance>(),
+    ticks: new InstanceProvider<EdgeInstance>(),
     labels: new InstanceProvider<LabelInstance>()
   }
 
   constructor(options: IAxisStoreOptions) {
-    this.width = options.width;
-    this.height = options.height;
+    this.width = options.width || 100;
+    this.height = options.height || 100;
     this.padding = options.padding;
     this.lineWidth = options.lineWidth || this.lineWidth;
     this.tickWidth = options.tickWidth || this.tickWidth;
@@ -101,6 +102,9 @@ export class AxisStore {
     this.labelPadding = options.labelPadding || this.labelPadding;
     this.type = options.type;
     this.labels = this.generateLabelTexts(options);
+
+    Object.assign(this.providers, options.providers);
+
     this.init();
   }
 
@@ -109,25 +113,9 @@ export class AxisStore {
     const origin = this.origin;
     const w = this.axisWidth;
     const h = this.axisHeight;
-    const lineWidth = this.lineWidth;
     const tickLength = this.tickLength;
     const tickWidth = this.tickWidth;
     const labelPadding = this.labelPadding;
-
-    // x direction Line
-    this.xAxisLine = this.providers.axis.add(new EdgeInstance({
-      start: origin,
-      end: [origin[0] + w, origin[1]],
-      thickness: [lineWidth, lineWidth]
-    }));
-
-    // y direction Line
-    this.yAxisLine = this.providers.axis.add(new EdgeInstance({
-      start: origin,
-      end: [origin[0], origin[1] - h],
-      thickness: [lineWidth, lineWidth]
-    }));
-
     const length = this.labels.length;
 
     if (length != 0) {
@@ -156,11 +144,11 @@ export class AxisStore {
             fontSize: this.labelSize,
             origin: [origin[0], y],
             text: this.labels[i],
+
             onReady: label => {
               if (label.size[0] > this.maxLabelWidth) {
                 this.maxLabelWidth = label.size[0];
                 this.updateChartMetrics();
-                this.layoutLines();
                 this.layoutLabels();
               }
 
@@ -175,7 +163,7 @@ export class AxisStore {
 
           const curY = this.height - y;
           if (curY >= this.viewRange[0] && curY <= this.viewRange[1]) {
-            this.providers.lines.add(tick);
+            this.providers.ticks.add(tick);
             this.providers.labels.add(label)
           }
 
@@ -225,7 +213,7 @@ export class AxisStore {
           this.labelInstances.push(label);
 
           if (x >= this.viewRange[0] && x <= this.viewRange[1]) {
-            this.providers.lines.add(tick);
+            this.providers.ticks.add(tick);
             this.providers.labels.add(label);
           }
         }
@@ -309,7 +297,7 @@ export class AxisStore {
     return labelTexts;
   }
 
-  generateNumberLabels(numberRange: [number, number], numberGap?: number) {
+  generateNumberLabels(numberRange: Vec2, numberGap?: number) {
     let gap = numberGap || 1;
     const labels: string[] = [];
 
@@ -318,13 +306,6 @@ export class AxisStore {
     }
 
     return labels;
-  }
-
-  layoutLines() {
-    this.xAxisLine.start = this.origin;
-    this.xAxisLine.end = [this.origin[0] + this.axisWidth, this.origin[1]];
-    this.yAxisLine.start = this.origin;
-    this.yAxisLine.end = [this.origin[0], this.origin[1] - this.axisHeight];
   }
 
   interval: number = 1;
@@ -427,10 +408,10 @@ export class AxisStore {
 
         if (preIn && !curIn) {
           this.providers.labels.remove(label);
-          this.providers.lines.remove(tick);
+          this.providers.ticks.remove(tick);
         } else if (!preIn && curIn) {
           this.providers.labels.add(label);
-          this.providers.lines.add(tick);
+          this.providers.ticks.add(tick);
         }
       }
     } else {
@@ -524,10 +505,10 @@ export class AxisStore {
 
         if (preIn && !curIn) {
           this.providers.labels.remove(label);
-          this.providers.lines.remove(tick);
+          this.providers.ticks.remove(tick);
         } else if (!preIn && curIn) {
           this.providers.labels.add(label);
-          this.providers.lines.add(tick);
+          this.providers.ticks.add(tick);
         }
 
       }
@@ -562,7 +543,7 @@ export class AxisStore {
 
 
   // Only update viewRange , then update offset and scale
-  updateScale(mouse: [number, number], scale: [number, number, number]) {
+  updateScale(mouse: Vec2, scale: Vec3) {
     const newScale = this.scale + (this.verticalLayout ? scale[1] : scale[0]);
     this.scale = Math.max(newScale, 1);
 
@@ -591,7 +572,7 @@ export class AxisStore {
     }
   }
 
-  updateOffset(offset: [number, number, number]) {
+  updateOffset(offset: Vec3) {
     if (this.verticalLayout) {
       const downY = this.maxRange[0] - offset[1];
       const upY = this.maxRange[1] - offset[1];
