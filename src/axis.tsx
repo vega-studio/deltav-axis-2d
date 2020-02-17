@@ -1,56 +1,14 @@
-import React, { Component } from "react";
-import { AxisStore } from "./store";
-import { AxisAction } from "./action";
-import { Color } from "deltav";
-import { AxisView } from "./view";
-import * as dat from "dat.gui";
-import { AxisDataType } from "./types";
+import { AxisStore, IAxisStoreOptions } from "./store";
+import { AxisDataType, Color, Vec2, Vec3 } from "./types";
 
-export interface IAxisProps {
-  type: AxisDataType;
+export interface IAxisProps extends IAxisStoreOptions {
 
-  labels?: string[];
-
-  startDate?: Date | string;
-  endDate?: Date | string
-
-  numberRange?: [number, number];
-  numberGap?: number;
-
-  labelFont?: string;
-  labelColor?: Color;
-  labelSize?: number;
-  labelHighlightColor?: Color;
-  labelPadding?: number;
-  lineColor?: Color;
-  lineWidth?: number;
-  tickWidth?: number;
-  tickLength?: number;
-  padding: {
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-  }
 }
 
-export class Axis extends Component<IAxisProps> {
+export class Axis {
   store: AxisStore;
-  action: AxisAction;
-  font: string;
-
-  parameters = {
-    toggleLayout: () => {
-      this.store.verticalLayout = !this.store.verticalLayout;
-      this.store.updateChartMetrics();
-      this.store.layoutLines();
-      this.store.layoutLabels();
-    }
-  }
 
   constructor(props: IAxisProps) {
-    super(props);
-    this.action = new AxisAction();
     this.store = new AxisStore({
       padding: {
         left: props.padding.left,
@@ -58,6 +16,7 @@ export class Axis extends Component<IAxisProps> {
         top: props.padding.top,
         bottom: props.padding.bottom
       },
+      providers: props.providers,
       width: window.innerWidth, // need to change
       height: window.innerHeight,
       lineWidth: props.lineWidth,
@@ -74,17 +33,16 @@ export class Axis extends Component<IAxisProps> {
       numberRange: props.numberRange,
       numberGap: props.numberGap
     });
-    this.font = props.labelFont;
-    this.buildConsole();
-    // this.action.store = this.store;
   }
 
-  buildConsole() {
-    const ui = new dat.GUI();
-    ui.add(this.parameters, 'toggleLayout');
+  /**
+   * Shifts the axis by a given amount
+   */
+  shift(offset: Vec3) {
+    this.store.updateOffset(offset);
   }
 
-  render() {
-    return <AxisView store={this.store} action={this.action} font={this.font} />;
+  zoom(focus: Vec2, deltaScale: Vec3) {
+    this.store.updateScale(focus, deltaScale);
   }
 }

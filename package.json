@@ -5,38 +5,35 @@
   "main": "dist/main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node server/dev.js"
+    "dev": "node scripts/dev.js",
+    "release": "node scripts/release.js"
   },
   "keywords": [],
   "author": "heroyy1989 <heryoyo1989@gmail.com>",
   "license": "MIT",
   "devDependencies": {
-    "@babel/core": "^7.8.3",
-    "@babel/preset-env": "^7.8.3",
-    "css-loader": "^3.4.2",
-    "deltav": "1.35.6",
-    "file-loader": "^5.0.2",
-    "less-loader": "^5.0.0",
-    "style-loader": "^1.1.2",
-    "ts-loader": "^6.2.1",
-    "webpack": "^4.41.5",
-    "webpack-cli": "^3.3.10",
-    "webpack-dev-server": "^3.10.1"
-  },
-  "dependencies": {
-    "@types/dat.gui": "^0.7.5",
-    "@types/react-dom": "^16.9.4",
+    "@babel/core": "7.8.3",
+    "@babel/preset-env": "7.8.3",
+    "@types/dat.gui": "0.7.5",
+    "babel-core": "6.26.3",
+    "babel-loader": "8.0.6",
+    "babel-preset-env": "1.7.0",
     "Babel": "0.0.1",
-    "babel-core": "^6.26.3",
-    "babel-loader": "^8.0.6",
-    "babel-preset-env": "^1.7.0",
-    "dat.gui": "^0.7.6",
-    "less": "^3.10.3",
-    "mobx": "^5.15.2",
-    "mobx-react": "^6.1.5",
-    "react": "^16.12.0",
-    "react-dom": "^16.12.0",
-    "react-draggable": "^4.2.0",
-    "typescript": "^3.7.4"
-  }
+    "css-loader": "3.4.2",
+    "dat.gui": "0.7.6",
+    "deltav": "1.35.8",
+    "file-loader": "5.0.2",
+    "fs-extra": "8.1.0",
+    "less-loader": "5.0.0",
+    "less": "3.10.3",
+    "react-draggable": "4.2.0",
+    "shelljs": "0.8.3",
+    "style-loader": "1.1.2",
+    "ts-loader": "6.2.1",
+    "typescript": "3.7.4",
+    "webpack-cli": "3.3.10",
+    "webpack-dev-server": "3.10.1",
+    "webpack": "4.41.5"
+  },
+  "dependencies": {}
 }
