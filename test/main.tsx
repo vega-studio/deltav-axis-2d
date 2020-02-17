@@ -8,9 +8,7 @@ let axis: Axis;
 
 const parameters = {
   toggleLayout: () => {
-    axis.store.verticalLayout = !axis.store.verticalLayout;
-    axis.store.updateChartMetrics();
-    axis.store.layoutLabels();
+    axis.store.changeAxis();
   }
 }
 
@@ -110,20 +108,6 @@ async function start() {
     names.push(`${letters[index1]}${letters[index2]}`);
   }
 
-  const monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  const month = 8;
-  const startDate = new Date(2019, month, 10);
-  const endDate1 = new Date(2020, month + 2, monthDays[month]);
-
-  console.log(getLength(new Date(2019, 2, 10), new Date(2119, 11, 6)))
-
-  const labels: dateLevel[] = [];
-  travelDates(startDate, endDate1, labels);
-  console.log(labels);
-
-  const lengths = getIntervalLengths(startDate, endDate1);
-  console.log(lengths);
-
   // Generate the surface for rendering the axis into
   const surface = await makeSurface(container);
   // Make the debugging console
@@ -133,18 +117,15 @@ async function start() {
 
   // Make our axis component
   axis = new Axis({
-    labels: names,
-    padding: {
-      left: 0.02,
-      right: 0.02,
-      top: 0.02,
-      bottom: 0.04
+    view: {
+      origin: [100, 600],
+      size: [1500, 500],
     },
+    labels: names,
     providers: surface.providers,
     labelColor: [1, 0.5, 0, 1],
     labelSize: 18,
     labelPadding: 15,
-    lineWidth: 3,
     tickWidth: 2,
     tickLength: 10,
     type: AxisDataType.LABEL,

@@ -1,31 +1,20 @@
 import { AxisStore, IAxisStoreOptions } from "./store";
-import { AxisDataType, Color, Vec2, Vec3 } from "./types";
+import { Vec2, Vec3 } from "./types";
 
-export interface IAxisProps extends IAxisStoreOptions {
-
-}
+export interface IAxisProps extends IAxisStoreOptions { }
 
 export class Axis {
   store: AxisStore;
 
   constructor(props: IAxisProps) {
     this.store = new AxisStore({
-      padding: {
-        left: props.padding.left,
-        right: props.padding.right,
-        top: props.padding.top,
-        bottom: props.padding.bottom
-      },
+      view: props.view,
       providers: props.providers,
-      width: window.innerWidth, // need to change
-      height: window.innerHeight,
-      lineWidth: props.lineWidth,
       tickWidth: props.tickWidth,
       tickLength: props.tickLength,
       labelSize: props.labelSize,
       labelColor: props.labelColor,
       labelPadding: props.labelPadding,
-
       type: props.type,
       labels: props.labels,
       startDate: props.startDate,
