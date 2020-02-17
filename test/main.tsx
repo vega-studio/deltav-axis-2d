@@ -117,8 +117,10 @@ async function start() {
 
   // Make our axis component
   axis = new Axis({
-    origin: [100, 600],
-    size: [1500, 500],
+    view: {
+      origin: [100, 600],
+      size: [1500, 500],
+    },
     labels: names,
     providers: surface.providers,
     labelColor: [1, 0.5, 0, 1],

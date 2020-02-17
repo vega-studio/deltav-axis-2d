@@ -5,8 +5,10 @@ import { dateLevel, travelDates, getIntervalLengths } from "src/util/dateUtil";
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export interface IAxisStoreOptions {
-  origin: Vec2;
-  size: Vec2;
+  view: {
+    origin: Vec2;
+    size: Vec2;
+  };
   providers?: {
     ticks?: InstanceProvider<EdgeInstance>,
     labels?: InstanceProvider<LabelInstance>
@@ -38,8 +40,11 @@ export class AxisStore {
   tickLineInstances: EdgeInstance[] = [];
 
   // Axis Metrics
-  origin: Vec2;
-  size: Vec2;
+  view: {
+    origin: Vec2;
+    size: Vec2;
+  }
+
   tickWidth: number = 1;
   tickLength: number = 10;
 
@@ -73,8 +78,7 @@ export class AxisStore {
   }
 
   constructor(options: IAxisStoreOptions) {
-    this.origin = options.origin;
-    this.size = options.size || [100, 100];
+    this.view = options.view;
     this.tickWidth = options.tickWidth || this.tickWidth;
     this.tickLength = options.tickLength || this.tickLength;
     this.labelSize = options.labelSize || this.labelSize;
@@ -90,9 +94,9 @@ export class AxisStore {
 
   init() {
     this.updateChartMetrics();
-    const origin = this.origin;
-    const w = this.size[0];
-    const h = this.size[1];
+    const origin = this.view.origin;
+    const w = this.view.size[0];
+    const h = this.view.size[1];
     const tickLength = this.tickLength;
     const tickWidth = this.tickWidth;
     const labelPadding = this.labelPadding;
@@ -296,12 +300,12 @@ export class AxisStore {
 
   layoutLabels() {
     const length = this.labels.length;
-    const origin = this.origin;
+    const origin = this.view.origin;
     const tickLength = this.tickLength;
     const labelPadding = this.labelPadding;
 
     if (this.verticalLayout) {
-      const h = this.size[1];
+      const h = this.view.size[1];
       const intHeight = h / length;
 
       let intH = intHeight * this.scale;
@@ -399,7 +403,7 @@ export class AxisStore {
         }
       }
     } else {
-      const w = this.size[0];
+      const w = this.view.size[0];
       const intWidth = w / length;
 
       let intW = intWidth * this.scale;
@@ -500,9 +504,9 @@ export class AxisStore {
   }
 
   updateChartMetrics() {
-    const origin = this.origin;
-    const width = this.size[0];
-    const height = this.size[1];
+    const origin = this.view.origin;
+    const width = this.view.size[0];
+    const height = this.view.size[1];
 
     if (this.verticalLayout) {
       this.viewRange = [
@@ -526,8 +530,8 @@ export class AxisStore {
   updateScale(mouse: Vec2, scale: Vec3) {
     const newScale = this.scale + (this.verticalLayout ? scale[1] : scale[0]);
     this.scale = Math.max(newScale, 1);
-    const width = this.size[0];
-    const height = this.size[1];
+    const width = this.view.size[0];
+    const height = this.view.size[1];
 
     if (this.verticalLayout) {
       const downY = this.maxRange[0];
