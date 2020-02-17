@@ -5,9 +5,8 @@ import { dateLevel, travelDates, getIntervalLengths } from "src/util/dateUtil";
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export interface IAxisStoreOptions {
-  origin: [number, number];
-  width: number;
-  height: number;
+  origin: Vec2;
+  size: Vec2;
   providers?: {
     ticks?: InstanceProvider<EdgeInstance>,
     labels?: InstanceProvider<LabelInstance>
@@ -39,11 +38,8 @@ export class AxisStore {
   tickLineInstances: EdgeInstance[] = [];
 
   // Axis Metrics
-  width: number;
-  height: number;
-  axisWidth: number;
-  axisHeight: number;
   origin: Vec2;
+  size: Vec2;
   tickWidth: number = 1;
   tickLength: number = 10;
 
@@ -68,7 +64,7 @@ export class AxisStore {
 
   // Interval info
   interval: number = 1;
-  dateIntevalLengths: number[];
+  dateIntervalLengths: number[];
 
 
   providers = {
@@ -78,8 +74,7 @@ export class AxisStore {
 
   constructor(options: IAxisStoreOptions) {
     this.origin = options.origin;
-    this.width = options.width || 100;
-    this.height = options.height || 100;
+    this.size = options.size || [100, 100];
     this.tickWidth = options.tickWidth || this.tickWidth;
     this.tickLength = options.tickLength || this.tickLength;
     this.labelSize = options.labelSize || this.labelSize;
@@ -96,8 +91,8 @@ export class AxisStore {
   init() {
     this.updateChartMetrics();
     const origin = this.origin;
-    const w = this.width;
-    const h = this.height;
+    const w = this.size[0];
+    const h = this.size[1];
     const tickLength = this.tickLength;
     const tickWidth = this.tickWidth;
     const labelPadding = this.labelPadding;
@@ -241,7 +236,7 @@ export class AxisStore {
   generateDateLabels(startDate: string | Date, endDate: string | Date) {
     const sd = typeof startDate === "string" ? new Date(startDate) : startDate;
     const ed = typeof endDate === "string" ? new Date(endDate) : endDate;
-    this.dateIntevalLengths = getIntervalLengths(sd, ed);
+    this.dateIntervalLengths = getIntervalLengths(sd, ed);
     const dates: dateLevel[] = [];
     travelDates(sd, ed, dates);
     this.dates = dates;
@@ -265,7 +260,7 @@ export class AxisStore {
     })
 
     let dl = Math.floor(Math.log2(firstDays.length));
-    let daysInAYear = this.dateIntevalLengths[this.dateIntevalLengths.length - 1];
+    let daysInAYear = this.dateIntervalLengths[this.dateIntervalLengths.length - 1];
 
     while (dl > 0) {
       const delta = Math.pow(2, dl);
@@ -273,7 +268,7 @@ export class AxisStore {
         firstDays[i].level++;
       }
       daysInAYear *= 2;
-      this.dateIntevalLengths.push(daysInAYear);
+      this.dateIntervalLengths.push(daysInAYear);
       dl--;
     }
 
@@ -306,7 +301,7 @@ export class AxisStore {
     const labelPadding = this.labelPadding;
 
     if (this.verticalLayout) {
-      const h = this.height;
+      const h = this.size[1];
       const intHeight = h / length;
 
       let intH = intHeight * this.scale;
@@ -319,11 +314,11 @@ export class AxisStore {
           this.interval *= 2;
         }
       } else if (this.type === AxisDataType.DATE) {
-        this.interval = this.dateIntevalLengths[level];
+        this.interval = this.dateIntervalLengths[level];
 
         while (this.interval * intH <= this.maxLabelHeight) {
           level++;
-          this.interval = this.dateIntevalLengths[level];
+          this.interval = this.dateIntervalLengths[level];
         }
       }
 
@@ -404,7 +399,7 @@ export class AxisStore {
         }
       }
     } else {
-      const w = this.width;
+      const w = this.size[0];
       const intWidth = w / length;
 
       let intW = intWidth * this.scale;
@@ -417,11 +412,11 @@ export class AxisStore {
           this.interval *= 2;
         }
       } else if (this.type === AxisDataType.DATE) {
-        this.interval = this.dateIntevalLengths[level];
+        this.interval = this.dateIntervalLengths[level];
 
         while (this.interval * intW <= this.maxLabelWidth) {
           level++;
-          this.interval = this.dateIntevalLengths[level];
+          this.interval = this.dateIntervalLengths[level];
         }
 
       }
@@ -505,11 +500,9 @@ export class AxisStore {
   }
 
   updateChartMetrics() {
-    const {
-      origin,
-      width,
-      height
-    } = this;
+    const origin = this.origin;
+    const width = this.size[0];
+    const height = this.size[1];
 
     if (this.verticalLayout) {
       this.viewRange = [
@@ -533,6 +526,8 @@ export class AxisStore {
   updateScale(mouse: Vec2, scale: Vec3) {
     const newScale = this.scale + (this.verticalLayout ? scale[1] : scale[0]);
     this.scale = Math.max(newScale, 1);
+    const width = this.size[0];
+    const height = this.size[1];
 
     if (this.verticalLayout) {
       const downY = this.maxRange[0];
@@ -540,7 +535,7 @@ export class AxisStore {
       const vd = this.viewRange[0];
       const vu = this.viewRange[1];
       const pointY = Math.min(Math.max(vd, window.innerHeight - mouse[1]), vu);
-      const newHeight = this.height * this.scale;
+      const newHeight = height * this.scale;
       const upHeight = (pointY - downY) * newHeight / (upY - downY);
       const newDownY = pointY - upHeight;
       const newUpY = newDownY + newHeight;
@@ -551,7 +546,7 @@ export class AxisStore {
       const vl = this.viewRange[0];
       const vr = this.viewRange[1];
       const pointX = Math.min(Math.max(vl, mouse[0]), vr);
-      const newWidth = this.width * this.scale;
+      const newWidth = width * this.scale;
       const leftWidth = (pointX - leftX) * newWidth / (rightX - leftX);
       let newLeftX = pointX - leftWidth;
       let newRightX = newLeftX + newWidth;

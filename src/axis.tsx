@@ -9,8 +9,7 @@ export class Axis {
   constructor(props: IAxisProps) {
     this.store = new AxisStore({
       origin: props.origin,
-      width: props.width,
-      height: props.height,
+      size: props.size,
       providers: props.providers,
       tickWidth: props.tickWidth,
       tickLength: props.tickLength,
