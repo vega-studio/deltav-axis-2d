@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "dist/main.js",
+  "types": "dist/src/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node scripts/dev.js",
