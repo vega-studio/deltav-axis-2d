@@ -1,7 +1,7 @@
 const webpack = require('webpack');
 const DevServer = require('webpack-dev-server');
 
-process.env.NODE_ENV = 'development';
+process.env.NODE_ENV = process.env.NODE_ENV === 'production' ? 'production' : 'development';
 
 const config = require('../webpack.config.js');
 const compiler = webpack(config);

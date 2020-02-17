@@ -27,6 +27,7 @@ let entry = 'test';
 let path = resolve(__dirname, 'build');
 
 if (IS_PRODUCTION) {
+  console.log('Producing Production Distribution Bundle');
   entry = 'src';
   path = resolve(__dirname, 'dist');
   library = 'axis-component';
