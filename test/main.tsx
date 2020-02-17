@@ -1,5 +1,3 @@
-import ReactDOM from "react-dom";
-import React from "react";
 import { Axis } from "src";
 import { travelDates, getLength, getIntervalLengths, dateLevel } from "src/util/dateUtil";
 import { AxisDataType } from "src/types";
