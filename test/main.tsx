@@ -9,12 +9,31 @@ let axis: Axis;
 const parameters = {
   toggleLayout: () => {
     axis.store.changeAxis();
+  },
+  resize: () => {
+    axis.store.setView({
+      origin: [150 + 50 * Math.random(), 700 + 100 * Math.random()],
+      size: [700 + 300 * Math.random(), 600 + 200 * Math.random()]
+    });
+  },
+  expandRange: () => {
+    const start = axis.store.maxRange[0] - 30;
+    const end = axis.store.maxRange[1] + 30;
+    axis.store.setRange(start, end);
+  },
+  shrinkRange: () => {
+    const start = axis.store.maxRange[0] + 30;
+    const end = axis.store.maxRange[1] - 30;
+    axis.store.setRange(start, end);
   }
 }
 
 function buildConsole() {
   const ui = new dat.GUI();
   ui.add(parameters, 'toggleLayout');
+  ui.add(parameters, 'resize');
+  ui.add(parameters, 'expandRange');
+  ui.add(parameters, 'shrinkRange');
 }
 
 async function makeSurface(container: HTMLElement) {
@@ -51,7 +70,6 @@ async function makeSurface(container: HTMLElement) {
           return [0, 0, 0];
         },
         scaleFilter: (scale: [number, number, number]) => {
-          //console.warn("scale", view);
           axis.zoom(mouse, scale)
           return [0, 0, 0];
         },
@@ -80,10 +98,6 @@ async function makeSurface(container: HTMLElement) {
             type: EdgeType.LINE,
           }),
           labels: createLayer(LabelLayer, {
-            animate: {
-              // color: AutoEasingMethod.easeInOutCubic(300),
-              //origin: AutoEasingMethod.easeInOutCubic(300)
-            },
             data: providers.labels,
             resourceKey: resources.font.key
           })

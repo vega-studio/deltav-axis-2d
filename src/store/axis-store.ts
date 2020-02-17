@@ -4,6 +4,10 @@ import { dateLevel, travelDates, getIntervalLengths } from "src/util/dateUtil";
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+function getLevel(n: number) {
+
+}
+
 export interface IAxisStoreOptions {
   view: {
     origin: Vec2;
@@ -290,6 +294,23 @@ export class AxisStore {
     return labels;
   }
 
+  setView(view: { origin: Vec2, size: Vec2 }) {
+    this.view = view;
+    this.updateChartMetrics();
+    this.layoutLabels();
+  }
+
+  setRange(start: number, end: number) {
+    if (start > this.viewRange[0]) start = this.viewRange[0];
+    if (end < this.viewRange[1]) end = this.viewRange[1];
+
+    this.maxRange = [start, end];
+    this.scale = (end - start) / (this.viewRange[1] - this.viewRange[0]);
+    this.offset = this.maxRange[0] - this.viewRange[0];
+
+    this.layoutLabels();
+  }
+
   changeAxis() {
     this.verticalLayout = !this.verticalLayout;
     this.axisChanged = true;
@@ -326,8 +347,6 @@ export class AxisStore {
         }
       }
 
-
-      // To be tested
       for (let i = 0; i < length; i++) {
         const y = origin[1] - (i + 0.5) * intHeight * this.scale - this.offset;
         // Label
@@ -351,6 +370,7 @@ export class AxisStore {
         if ((this.type === AxisDataType.LABEL && i % this.interval === 0) ||
           (this.type === AxisDataType.NUMBER && i % this.interval === 0) ||
           (this.type === AxisDataType.DATE && this.dates[i].level >= level)) {
+
           label.color = [
             label.color[0],
             label.color[1],
