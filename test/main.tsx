@@ -16,15 +16,9 @@ const parameters = {
       size: [700 + 300 * Math.random(), 600 + 200 * Math.random()]
     });
   },
-  expandRange: () => {
-    const start = axis.store.maxRange[0] - 30;
-    const end = axis.store.maxRange[1] + 30;
-    axis.store.setRange(start, end);
-  },
-  shrinkRange: () => {
-    const start = axis.store.maxRange[0] + 30;
-    const end = axis.store.maxRange[1] - 30;
-    axis.store.setRange(start, end);
+  setDateRange: () => {
+    // axis.store.setDateRange(new Date(2019, 0, 8), new Date(2019, 2, 1));
+    axis.store.setNumberRange(-20, 120);
   }
 }
 
@@ -32,8 +26,7 @@ function buildConsole() {
   const ui = new dat.GUI();
   ui.add(parameters, 'toggleLayout');
   ui.add(parameters, 'resize');
-  ui.add(parameters, 'expandRange');
-  ui.add(parameters, 'shrinkRange');
+  ui.add(parameters, "setDateRange");
 }
 
 async function makeSurface(container: HTMLElement) {
@@ -132,8 +125,8 @@ async function start() {
   // Make our axis component
   axis = new Axis({
     view: {
-      origin: [100, 600],
-      size: [1500, 500],
+      origin: [300, 600],
+      size: [800, 500],
     },
     labels: names,
     providers: surface.providers,
@@ -142,11 +135,12 @@ async function start() {
     labelPadding: 15,
     tickWidth: 2,
     tickLength: 10,
-    type: AxisDataType.LABEL,
-    startDate: "01/08/2020",
-    endDate: new Date(2030, 1, 1),
+    type: AxisDataType.NUMBER,
+    startDate: "01/08/2019",
+    endDate: new Date(2019, 7, 1),
     numberRange: [1, 100],
     numberGap: 0.369,
+    maxLabelLength: 7
   });
 
   console.log(surface.providers.labels === axis.store.providers.labels);

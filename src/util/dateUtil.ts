@@ -108,7 +108,7 @@ function travelInAMonth(
 
 function travelMonth(year: number, month: number,
   labels: dateLevel[]) {
-  const days = monthDays[month];
+  const days = month === 1 && isLeapYear(year) ? 29 : monthDays[month];
   travelInAMonth(year, month, 1, days, labels);
 }
 
@@ -126,7 +126,7 @@ function travelInAYear(
   endDay: number,
   labels: dateLevel[]
 ) {
-  const startDays = monthDays[startMonth];
+  const startDays = startMonth == 1 && isLeapYear(year) ? 29 : monthDays[startMonth];
   travelInAMonth(year, startMonth, startDay, startDays, labels);
 
   for (let m = startMonth + 1; m < endMonth; m++) {
@@ -147,13 +147,18 @@ export function travelDates(start: Date, end: Date, labels: dateLevel[]) {
   if (startYear < endYear) {
     travelInAYear(startYear, startMonth, startDay, 11, 31, labels);
 
-    for (let y = startYear; y < endYear; y++) {
+    for (let y = startYear + 1; y < endYear; y++) {
       travelYear(y, labels);
     }
 
     travelInAYear(endYear, 0, 1, endMonth, endDay, labels);
   } else if (startYear === endYear) {
-    travelInAYear(startYear, startMonth, startDay, endMonth, endDay, labels);
+    if (startMonth === endMonth) {
+      travelInAMonth(startYear, startMonth, startDay, endDay, labels);
+    } else {
+      travelInAYear(startYear, startMonth, startDay, endMonth, endDay, labels);
+    }
+
   }
 }
 

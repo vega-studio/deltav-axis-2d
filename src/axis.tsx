@@ -19,6 +19,7 @@ export class Axis {
       labels: props.labels,
       startDate: props.startDate,
       endDate: props.endDate,
+      maxLabelLength: props.maxLabelLength,
       numberRange: props.numberRange,
       numberGap: props.numberGap
     });

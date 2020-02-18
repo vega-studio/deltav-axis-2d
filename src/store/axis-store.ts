@@ -1,12 +1,9 @@
 import { InstanceProvider, EdgeInstance, LabelInstance, Color, AnchorType } from "deltav";
 import { AxisDataType, Vec2, Vec3 } from "src/types";
 import { dateLevel, travelDates, getIntervalLengths } from "src/util/dateUtil";
+import moment from 'moment';
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function getLevel(n: number) {
-
-}
 
 export interface IAxisStoreOptions {
   view: {
@@ -29,11 +26,12 @@ export interface IAxisStoreOptions {
   endDate?: Date | string
   numberRange?: Vec2;
   numberGap?: number;
+  maxLabelLength?: number;
 }
 
 export class AxisStore {
   // Layout mode
-  verticalLayout: boolean = true;
+  verticalLayout: boolean = false;
   axisChanged: boolean = false;
 
   // data type
@@ -58,23 +56,25 @@ export class AxisStore {
   labelPadding: number = 10;
   maxLabelWidth: number = 0;
   maxLabelHeight: number = 0;
-  maxLabelLengh: number = 15;
-
+  maxLabelLengh: number = 5;
   labels: string[];
-
   dates: dateLevel[];
 
   // Range
   maxRange: Vec2;
   viewRange: Vec2;
-
   offset: number = 0;
   scale: number = 1;
+
+  numberRange: Vec2 = [0, 100];
+  numberGap: number = 1;
+
+  startDate: Date = new Date(2000, 0, 1);
+  endDate: Date = new Date();
 
   // Interval info
   interval: number = 1;
   dateIntervalLengths: number[];
-
 
   providers = {
     ticks: new InstanceProvider<EdgeInstance>(),
@@ -88,7 +88,24 @@ export class AxisStore {
     this.labelSize = options.labelSize || this.labelSize;
     this.labelColor = options.labelColor || this.labelColor;
     this.labelPadding = options.labelPadding || this.labelPadding;
+    this.maxLabelLengh = options.maxLabelLength || this.maxLabelLengh;
     this.type = options.type;
+
+    if (this.type === AxisDataType.DATE) {
+      if (options.startDate) {
+        this.startDate = typeof options.startDate === "string" ?
+          new Date(options.startDate) : options.startDate;
+      }
+
+      if (options.endDate) {
+        this.endDate = typeof options.endDate === "string" ?
+          new Date(options.endDate) : options.endDate;
+      }
+    } else if (this.type = AxisDataType.NUMBER) {
+      this.numberRange = options.numberRange || this.numberRange;
+      this.numberGap = options.numberGap || this.numberGap;
+    }
+
     this.labels = this.generateLabelTexts(options);
 
     Object.assign(this.providers, options.providers);
@@ -136,8 +153,6 @@ export class AxisStore {
             onReady: label => {
               if (label.size[0] > this.maxLabelWidth) {
                 this.maxLabelWidth = label.size[0];
-                this.updateChartMetrics();
-                this.layoutLabels();
               }
 
               if (label.size[1] > this.maxLabelHeight) {
@@ -185,7 +200,7 @@ export class AxisStore {
             },
             color: [this.labelColor[0], this.labelColor[1], this.labelColor[2], 0],
             fontSize: this.labelSize,
-            origin: [x, origin[1] + 10],
+            origin: [x, origin[1] + labelPadding],
             text,
             onReady: label => {
               if (label.size[1] > this.maxLabelHeight) {
@@ -244,10 +259,10 @@ export class AxisStore {
   generateDateLabels(startDate: string | Date, endDate: string | Date) {
     const sd = typeof startDate === "string" ? new Date(startDate) : startDate;
     const ed = typeof endDate === "string" ? new Date(endDate) : endDate;
-    this.dateIntervalLengths = getIntervalLengths(sd, ed);
+
     const dates: dateLevel[] = [];
     travelDates(sd, ed, dates);
-    this.dates = dates;
+
     const labelTexts: string[] = [];
     const firstDays: dateLevel[] = [];
 
@@ -267,7 +282,10 @@ export class AxisStore {
       }
     })
 
+    // firstDays.length means the number of first day of years
     let dl = Math.floor(Math.log2(firstDays.length));
+
+    this.dateIntervalLengths = getIntervalLengths(sd, ed);
     let daysInAYear = this.dateIntervalLengths[this.dateIntervalLengths.length - 1];
 
     while (dl > 0) {
@@ -279,6 +297,8 @@ export class AxisStore {
       this.dateIntervalLengths.push(daysInAYear);
       dl--;
     }
+
+    this.dates = dates;
 
     return labelTexts;
   }
@@ -300,15 +320,145 @@ export class AxisStore {
     this.layoutLabels();
   }
 
-  setRange(start: number, end: number) {
-    if (start > this.viewRange[0]) start = this.viewRange[0];
-    if (end < this.viewRange[1]) end = this.viewRange[1];
 
-    this.maxRange = [start, end];
-    this.scale = (end - start) / (this.viewRange[1] - this.viewRange[0]);
-    this.offset = this.maxRange[0] - this.viewRange[0];
+  setDateRange(startDate: string | Date, endDate: string | Date) {
+    const sd = typeof startDate === "string" ? new Date(startDate) : startDate;
+    const ed = typeof endDate === "string" ? new Date(endDate) : endDate;
+    const newLabels = this.generateDateLabels(startDate, endDate);
+    const newLength = moment(ed).diff(moment(sd), 'days') + 1;
+    const oldLength = this.labelInstances.length;
+    this.updateLabels(newLabels);
+  }
 
-    this.layoutLabels();
+  setNumberRange(start: number, end: number) {
+    const newLabels = this.generateNumberLabels([start, end], this.numberGap);
+    this.updateLabels(newLabels);
+  }
+
+  updateLabels(newLabels: string[]) {
+    const origin = this.view.origin;
+    const width = this.view.size[0];
+    const height = this.view.size[1];
+
+    this.labels = newLabels;
+    const newLength = newLabels.length;
+    const oldLength = this.labelInstances.length;
+
+    if (oldLength === newLength) {
+      for (let i = 0; i < this.labelInstances.length; i++) {
+        const instance = this.labelInstances[i];
+        this.updateLabel(instance, newLabels[i]);
+      }
+    } else {
+      if (this.verticalLayout) {
+        const intHeight = height / newLength;
+        this.maxLabelHeight = 0;
+
+        for (let i = 0; i < newLength; i++) {
+          const y = origin[1] - (i + 0.5) * intHeight * this.scale + this.offset;
+
+          if (i < oldLength) {
+            const instance = this.labelInstances[i];
+            const tick = this.tickLineInstances[i];
+            this.updateLabel(instance, newLabels[i], tick, origin[0], y);
+          } else {
+            this.insertLabel(origin[0], y, newLabels[i]);
+          }
+        }
+
+
+      } else {
+        const intWidth = width / newLength;
+        this.maxLabelWidth = 0;
+
+        for (let i = 0; i < newLength; i++) {
+          const x = origin[0] + (i + 0.5) * intWidth * this.scale + this.offset;
+
+          if (i < oldLength) {
+            const instance = this.labelInstances[i];
+            const tick = this.tickLineInstances[i];
+            this.updateLabel(instance, newLabels[i], tick, x, origin[1]);
+          } else {
+            this.insertLabel(x, origin[1], newLabels[i]);
+          }
+        }
+      }
+
+      if (oldLength > newLength) {
+        while (this.labelInstances.length > newLength) {
+          const label = this.labelInstances.pop();
+          this.providers.labels.remove(label);
+          const tick = this.tickLineInstances.pop();
+          this.providers.ticks.remove(tick);
+        }
+      }
+    }
+  }
+
+  updateLabel(label: LabelInstance, text: string, tick?: EdgeInstance, x?: number, y?: number) {
+    label.text = text.length > this.maxLabelLengh ?
+      text.substr(0, this.maxLabelLengh) : text;
+
+    label.onReady = label => {
+      if (label.size[1] > this.maxLabelHeight) {
+        this.maxLabelHeight = label.size[1];
+        if (this.verticalLayout) this.layoutLabels();
+      }
+
+      if (label.size[0] > this.maxLabelWidth) {
+        this.maxLabelWidth = label.size[0];
+        if (!this.verticalLayout) this.layoutLabels();
+      }
+    }
+
+    if (tick !== undefined && x !== undefined && y !== undefined) {
+      label.origin = [x, y];
+      tick.start = [x, y];
+      tick.end = this.verticalLayout ? [x - this.tickLength, y] : [x, y + this.tickLength];
+    }
+
+  }
+
+  insertLabel(x: number, y: number, text: string) {
+    if (text.length > this.maxLabelLengh) {
+      text = text.substr(0, this.maxLabelLengh);
+    }
+
+    const label = new LabelInstance({
+      anchor: {
+        padding: this.labelPadding,
+        type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
+      },
+      color: [this.labelColor[0], this.labelColor[1], this.labelColor[2], 0],
+      fontSize: this.labelSize,
+      origin: [x, y],
+      text,
+      onReady: label => {
+        if (label.size[1] > this.maxLabelHeight) {
+          this.maxLabelHeight = label.size[1];
+        }
+
+        if (label.size[0] > this.maxLabelWidth) {
+          this.maxLabelWidth = label.size[0];
+          this.layoutLabels();
+        }
+
+      }
+    });
+
+    this.labelInstances.push(label);
+    this.providers.labels.add(label);
+
+    const tick = new EdgeInstance({
+      start: [x, y],
+      end: this.verticalLayout ? [x, y + this.tickLength] : [x - this.tickLength, y],
+      thickness: [this.tickWidth, this.tickWidth],
+      startColor: [1, 1, 1, 0.5],
+      endColor: [1, 1, 1, 0.5]
+    });
+
+    this.tickLineInstances.push(tick);
+    this.providers.ticks.add(tick);
   }
 
   changeAxis() {
