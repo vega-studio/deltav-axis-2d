@@ -310,13 +310,20 @@ export class AxisStore {
 
       let intH = intHeight * this.scale;
       let level = 0;
+      let lowerInterval = 0;
+      let higherInterval = this.interval * 2;
+
+      // Get interval and lowerInterval to for showing labels and ticks
       if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
         this.interval = 1;
 
-        while (intH <= this.maxLabelHeight) {
-          intH *= 2;
+        while (this.interval * intH <= this.maxLabelHeight) {
+          // intH *= 2;
           this.interval *= 2;
         }
+
+        if (this.interval != 1) lowerInterval = this.interval / 2;
+        higherInterval = this.interval * 2;
       } else if (this.type === AxisDataType.DATE) {
         this.interval = this.dateIntervalLengths[level];
 
@@ -324,8 +331,14 @@ export class AxisStore {
           level++;
           this.interval = this.dateIntervalLengths[level];
         }
+
+        if (level > 0) lowerInterval = this.dateIntervalLengths[level - 1];
       }
 
+      const lowerScale = this.maxLabelHeight / (intHeight * this.interval);
+      const higherScale = lowerInterval === 0 ?
+        this.maxLabelHeight / (intHeight * this.interval * 0.5) :
+        this.maxLabelHeight / (intHeight * lowerInterval);
 
       // To be tested
       for (let i = 0; i < length; i++) {
@@ -343,7 +356,8 @@ export class AxisStore {
           padding: labelPadding,
           type: AnchorType.MiddleRight
         };
-        // Tick
+
+        // Ticks
         const tick = this.tickLineInstances[i];
         tick.start = [origin[0] - tickLength, y];
         tick.end = [origin[0], y];
@@ -351,25 +365,34 @@ export class AxisStore {
         if ((this.type === AxisDataType.LABEL && i % this.interval === 0) ||
           (this.type === AxisDataType.NUMBER && i % this.interval === 0) ||
           (this.type === AxisDataType.DATE && this.dates[i].level >= level)) {
+          const alphaScale = Math.min(Math.max(this.scale, lowerScale), higherScale);
+          let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+
+          if ((this.type === AxisDataType.LABEL && i % higherInterval === 0) ||
+            (this.type === AxisDataType.NUMBER && i % higherInterval === 0) ||
+            (this.type === AxisDataType.DATE && this.dates[i].level >= level + 1)) {
+            alpha = 1;
+          }
+
           label.color = [
             label.color[0],
             label.color[1],
             label.color[2],
-            1
+            alpha
           ];
 
           tick.startColor = [
             tick.startColor[0],
             tick.startColor[1],
             tick.startColor[2],
-            1
+            0.5 + alpha * 0.5
           ];
 
           tick.endColor = [
             tick.endColor[0],
             tick.endColor[1],
             tick.endColor[2],
-            1
+            0.5 + alpha * 0.5
           ];
         } else {
           label.color = [
@@ -408,13 +431,17 @@ export class AxisStore {
 
       let intW = intWidth * this.scale;
       let level = 0;
+      let lowerInterval = 0;
+      let higherInterval = this.interval * 2;
 
       if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
         this.interval = 1;
-        while (intW <= this.maxLabelWidth) {
-          intW *= 2;
+        while (this.interval * intW <= this.maxLabelWidth) {
           this.interval *= 2;
         }
+
+        if (this.interval != 1) lowerInterval = this.interval / 2;
+        higherInterval = this.interval * 2;
       } else if (this.type === AxisDataType.DATE) {
         this.interval = this.dateIntervalLengths[level];
 
@@ -423,7 +450,13 @@ export class AxisStore {
           this.interval = this.dateIntervalLengths[level];
         }
 
+        if (level > 0) lowerInterval = this.dateIntervalLengths[level - 1];
       }
+
+      const lowerScale = this.maxLabelWidth / (intWidth * this.interval);
+      const higherScale = lowerInterval === 0 ?
+        this.maxLabelWidth / (intWidth * this.interval * 0.5) :
+        this.maxLabelWidth / (intWidth * lowerInterval);
 
       for (let i = 0; i < length; i++) {
         const x = origin[0] + (i + 0.5) * intWidth * this.scale + this.offset;
@@ -448,25 +481,35 @@ export class AxisStore {
         if ((this.type === AxisDataType.LABEL && i % this.interval === 0) ||
           (this.type === AxisDataType.NUMBER && i % this.interval === 0) ||
           (this.type === AxisDataType.DATE && this.dates[i].level >= level)) {
+
+          const alphaScale = Math.min(Math.max(this.scale, lowerScale), higherScale);
+          let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+
+          if ((this.type === AxisDataType.LABEL && i % higherInterval === 0) ||
+            (this.type === AxisDataType.NUMBER && i % higherInterval === 0) ||
+            (this.type === AxisDataType.DATE && this.dates[i].level >= level + 1)) {
+            alpha = 1;
+          }
+
           label.color = [
             label.color[0],
             label.color[1],
             label.color[2],
-            1
+            alpha
           ];
 
           tick.startColor = [
             tick.startColor[0],
             tick.startColor[1],
             tick.startColor[2],
-            1
+            0.5 + alpha * 0.5
           ];
 
           tick.endColor = [
             tick.endColor[0],
             tick.endColor[1],
             tick.endColor[2],
-            1
+            0.5 + alpha * 0.5
           ];
         } else {
           label.color = [
