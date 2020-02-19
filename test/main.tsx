@@ -128,7 +128,7 @@ async function start() {
     labelPadding: 15,
     tickWidth: 2,
     tickLength: 10,
-    type: AxisDataType.LABEL,
+    type: AxisDataType.DATE,
     startDate: "01/08/2020",
     endDate: new Date(2030, 1, 1),
     numberRange: [1, 100],

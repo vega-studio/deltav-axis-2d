@@ -304,11 +304,13 @@ export class AxisStore {
     const tickLength = this.tickLength;
     const labelPadding = this.labelPadding;
 
+    const curScale = 0.5 * Math.pow(2, this.scale);
+
     if (this.verticalLayout) {
       const h = this.view.size[1];
       const intHeight = h / length;
 
-      let intH = intHeight * this.scale;
+      let intH = intHeight * curScale;
       let level = 0;
       let lowerInterval = 0;
       let higherInterval = this.interval * 2;
@@ -342,7 +344,7 @@ export class AxisStore {
 
       // To be tested
       for (let i = 0; i < length; i++) {
-        const y = origin[1] - (i + 0.5) * intHeight * this.scale - this.offset;
+        const y = origin[1] - (i + 0.5) * intHeight * curScale - this.offset;
         // Label
         const label = this.labelInstances[i];
         const preY = window.innerHeight - label.origin[1];
@@ -365,7 +367,7 @@ export class AxisStore {
         if ((this.type === AxisDataType.LABEL && i % this.interval === 0) ||
           (this.type === AxisDataType.NUMBER && i % this.interval === 0) ||
           (this.type === AxisDataType.DATE && this.dates[i].level >= level)) {
-          const alphaScale = Math.min(Math.max(this.scale, lowerScale), higherScale);
+          const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
           let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
 
           if ((this.type === AxisDataType.LABEL && i % higherInterval === 0) ||
@@ -385,14 +387,14 @@ export class AxisStore {
             tick.startColor[0],
             tick.startColor[1],
             tick.startColor[2],
-            0.5 + alpha * 0.5
+            alpha
           ];
 
           tick.endColor = [
             tick.endColor[0],
             tick.endColor[1],
             tick.endColor[2],
-            0.5 + alpha * 0.5
+            alpha
           ];
         } else {
           label.color = [
@@ -406,14 +408,14 @@ export class AxisStore {
             tick.startColor[0],
             tick.startColor[1],
             tick.startColor[2],
-            0.5
+            0
           ];
 
           tick.endColor = [
             tick.endColor[0],
             tick.endColor[1],
             tick.endColor[2],
-            0.5
+            0
           ];
         }
 
@@ -429,7 +431,7 @@ export class AxisStore {
       const w = this.view.size[0];
       const intWidth = w / length;
 
-      let intW = intWidth * this.scale;
+      let intW = intWidth * curScale;
       let level = 0;
       let lowerInterval = 0;
       let higherInterval = this.interval * 2;
@@ -459,7 +461,7 @@ export class AxisStore {
         this.maxLabelWidth / (intWidth * lowerInterval);
 
       for (let i = 0; i < length; i++) {
-        const x = origin[0] + (i + 0.5) * intWidth * this.scale + this.offset;
+        const x = origin[0] + (i + 0.5) * intWidth * curScale + this.offset;
         // Label
         const label = this.labelInstances[i];
         const preX = label.origin[0];
@@ -482,7 +484,7 @@ export class AxisStore {
           (this.type === AxisDataType.NUMBER && i % this.interval === 0) ||
           (this.type === AxisDataType.DATE && this.dates[i].level >= level)) {
 
-          const alphaScale = Math.min(Math.max(this.scale, lowerScale), higherScale);
+          const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
           let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
 
           if ((this.type === AxisDataType.LABEL && i % higherInterval === 0) ||
@@ -502,14 +504,14 @@ export class AxisStore {
             tick.startColor[0],
             tick.startColor[1],
             tick.startColor[2],
-            0.5 + alpha * 0.5
+            0.1 + 0.9 * alpha
           ];
 
           tick.endColor = [
             tick.endColor[0],
             tick.endColor[1],
             tick.endColor[2],
-            0.5 + alpha * 0.5
+            0.1 + 0.9 * alpha
           ];
         } else {
           label.color = [
@@ -523,14 +525,14 @@ export class AxisStore {
             tick.startColor[0],
             tick.startColor[1],
             tick.startColor[2],
-            0.5
+            0.1
           ];
 
           tick.endColor = [
             tick.endColor[0],
             tick.endColor[1],
             tick.endColor[2],
-            0.5
+            0.1
           ];
         }
 
@@ -573,6 +575,9 @@ export class AxisStore {
   updateScale(mouse: Vec2, scale: Vec3) {
     const newScale = this.scale + (this.verticalLayout ? scale[1] : scale[0]);
     this.scale = Math.max(newScale, 1);
+
+    const curScale = 0.5 * Math.pow(2, this.scale);
+
     const width = this.view.size[0];
     const height = this.view.size[1];
 
@@ -582,7 +587,7 @@ export class AxisStore {
       const vd = this.viewRange[0];
       const vu = this.viewRange[1];
       const pointY = Math.min(Math.max(vd, window.innerHeight - mouse[1]), vu);
-      const newHeight = height * this.scale;
+      const newHeight = height * curScale;
       const upHeight = (pointY - downY) * newHeight / (upY - downY);
       const newDownY = pointY - upHeight;
       const newUpY = newDownY + newHeight;
@@ -593,7 +598,7 @@ export class AxisStore {
       const vl = this.viewRange[0];
       const vr = this.viewRange[1];
       const pointX = Math.min(Math.max(vl, mouse[0]), vr);
-      const newWidth = width * this.scale;
+      const newWidth = width * curScale;
       const leftWidth = (pointX - leftX) * newWidth / (rightX - leftX);
       let newLeftX = pointX - leftWidth;
       let newRightX = newLeftX + newWidth;
