@@ -118,8 +118,8 @@ async function start() {
   // Make our axis component
   axis = new Axis({
     view: {
-      origin: [100, 600],
-      size: [1500, 500],
+      origin: [150, 600],
+      size: [1200, 500],
     },
     labels: names,
     providers: surface.providers,
@@ -128,10 +128,10 @@ async function start() {
     labelPadding: 15,
     tickWidth: 2,
     tickLength: 10,
-    type: AxisDataType.DATE,
+    type: AxisDataType.NUMBER,
     startDate: "01/08/2020",
     endDate: new Date(2030, 1, 1),
-    numberRange: [1, 100],
+    numberRange: [1, 10000000000],
     numberGap: 0.369,
   });
 
