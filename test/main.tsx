@@ -4,11 +4,13 @@ import { AxisDataType } from "src/types";
 import { AutoEasingMethod, createLayer, createView, View2D, EdgeLayer, LabelLayer, ClearFlags, SimpleEventHandler, IMouseInteraction, BasicSurface, Camera2D, BasicCamera2DController, EdgeType, Vec2, InstanceProvider, EdgeInstance, LabelInstance, createFont, FontMapGlyphType } from "deltav";
 import * as dat from "dat.gui";
 
-let axis: Axis;
+let axis1: Axis;
+let axis2: Axis;
+let axis3: Axis;
 
 const parameters = {
   toggleLayout: () => {
-    axis.store.changeAxis();
+    axis1.store.changeAxis();
   }
 }
 
@@ -47,12 +49,16 @@ async function makeSurface(container: HTMLElement) {
       controller: new BasicCamera2DController({
         camera: cameras.main,
         panFilter: (offset: [number, number, number]) => {
-          axis.shift(offset);
+          axis1.shift(offset);
+          axis2.shift(offset);
+          axis3.shift(offset);
           return [0, 0, 0];
         },
         scaleFilter: (scale: [number, number, number]) => {
           //console.warn("scale", view);
-          axis.zoom(mouse, scale)
+          axis1.zoom(mouse, scale);
+          axis2.zoom(mouse, scale)
+          axis3.zoom(mouse, scale)
           return [0, 0, 0];
         },
       }),
@@ -116,7 +122,22 @@ async function start() {
   console.log('READY');
 
   // Make our axis component
-  axis = new Axis({
+  axis1 = new Axis({
+    view: {
+      origin: [150, 400],
+      size: [1200, 500],
+    },
+    labels: names,
+    providers: surface.providers,
+    labelColor: [1, 0.5, 0, 1],
+    labelSize: 18,
+    labelPadding: 15,
+    tickWidth: 2,
+    tickLength: 10,
+    type: AxisDataType.LABEL,
+  });
+
+  axis2 = new Axis({
     view: {
       origin: [150, 600],
       size: [1200, 500],
@@ -129,13 +150,29 @@ async function start() {
     tickWidth: 2,
     tickLength: 10,
     type: AxisDataType.NUMBER,
-    startDate: "01/08/2020",
-    endDate: new Date(2030, 1, 1),
-    numberRange: [1, 10000000000],
-    numberGap: 0.369,
+    numberRange: [-2725120736, -2372919733], //[1, 10000000000],
+    numberGap: 1 // 0.369,
   });
 
-  console.log(surface.providers.labels === axis.store.providers.labels);
+
+  axis3 = new Axis({
+    view: {
+      origin: [150, 800],
+      size: [1200, 500],
+    },
+    labels: names,
+    providers: surface.providers,
+    labelColor: [1, 0.5, 0, 1],
+    labelSize: 18,
+    labelPadding: 15,
+    tickWidth: 2,
+    tickLength: 10,
+    type: AxisDataType.DATE,
+    startDate: "01/08/2020",
+    endDate: new Date(2136, 1, 1),
+  });
+
+  console.log(surface.providers.labels === axis1.store.providers.labels);
 }
 
 start();

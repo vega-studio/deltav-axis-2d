@@ -1,6 +1,6 @@
 import { InstanceProvider, EdgeInstance, LabelInstance, Color, AnchorType } from "deltav";
 import { AxisDataType, Vec2, Vec3, Bucket } from "src/types";
-import { dateLevel, travelDates, getIntervalLengths } from "src/util/dateUtil";
+import { dateLevel, travelDates, getDayLevel, getIntervalLengths, getMaxLevel, getIndices } from "src/util/dateUtil";
 import moment from 'moment';
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -30,7 +30,7 @@ export interface IAxisStoreOptions {
 
 export class AxisStore {
   // Layout mode
-  verticalLayout: boolean = true;
+  verticalLayout: boolean = false;
   axisChanged: boolean = false;
 
   // data type
@@ -82,6 +82,7 @@ export class AxisStore {
   interval: number = 1;
   lowerInterval: number = 0;
   higherInterval: number = 2;
+  scaleLevel: number = 0; // for dates
 
   dateIntervalLengths: number[];
 
@@ -92,7 +93,7 @@ export class AxisStore {
 
   constructor(options: IAxisStoreOptions) {
     this.view = options.view;
-    this.preSetMaxWidth = this.view.size[0] / 8;
+    this.preSetMaxWidth = this.view.size[0] / 20;
     this.preSetMaxHeight = this.view.size[1] / 8;
     this.tickWidth = options.tickWidth || this.tickWidth;
     this.tickLength = options.tickLength || this.tickLength;
@@ -224,14 +225,72 @@ export class AxisStore {
   init2() {
     this.initChartMetrics();
     this.updateInterval();
-    console.log("interval", this.interval, "max width", this.maxLabelWidth);
+
     if (this.verticalLayout) {
       this.layoutVertical();
     } else {
       this.layoutHorizon();
     }
 
+    this.drawAuxilaryLines();
   }
+
+  auxLines: EdgeInstance[] = [];
+
+  drawAuxilaryLines() {
+    const origin = this.view.origin;
+    const size = this.view.size;
+
+    if (this.auxLines.length === 0) {
+      if (this.verticalLayout) {
+        const line1 = new EdgeInstance({
+          start: origin,
+          end: [origin[0] - 40, origin[1]],
+          startColor: [1, 0, 0, 1],
+          endColor: [1, 0, 0, 1]
+        })
+        const line2 = new EdgeInstance({
+          start: [origin[0], origin[1] - size[1]],
+          end: [origin[0] - 40, origin[1] - size[1]],
+          startColor: [1, 0, 0, 1],
+          endColor: [1, 0, 0, 1]
+        })
+
+        this.providers.ticks.add(line1);
+        this.providers.ticks.add(line2);
+      } else {
+        const line1 = new EdgeInstance({
+          start: origin,
+          end: [origin[0], origin[1] - 40],
+          startColor: [1, 0, 0, 1],
+          endColor: [1, 0, 0, 1]
+        })
+        const line2 = new EdgeInstance({
+          start: [origin[0] + size[0], origin[1]],
+          end: [origin[0] + size[0], origin[1] - 40],
+          startColor: [1, 0, 0, 1],
+          endColor: [1, 0, 0, 1]
+        })
+
+        this.providers.ticks.add(line1);
+        this.providers.ticks.add(line2);
+      }
+    } else {
+      if (this.verticalLayout) {
+        this.auxLines[0].start = origin;
+        this.auxLines[0].end = [origin[0] - 40, origin[1]];
+        this.auxLines[1].start = [origin[0], origin[1] - size[1]];
+        this.auxLines[1].end = [origin[0] - 40, origin[1] - size[1]];
+      } else {
+        this.auxLines[0].start = origin;
+        this.auxLines[0].end = [origin[0], origin[1] - 40];
+        this.auxLines[1].start = [origin[0] + size[0], origin[1]];
+        this.auxLines[1].end = [origin[0] + size[0], origin[1] - 40];
+      }
+    }
+  }
+
+
 
   initType(options: IAxisStoreOptions) {
     this.type = options.type;
@@ -266,7 +325,18 @@ export class AxisStore {
         const endDate = options.endDate;
         this.startDate = typeof startDate === "string" ? new Date(startDate) : startDate;
         this.endDate = typeof endDate === "string" ? new Date(endDate) : endDate;
+        this.generateDateInterval();
         this.unitNumber = moment(this.endDate).diff(moment(this.startDate), 'days') + 1;
+
+        getMaxLevel(this.startDate, this.endDate);
+        console.warn("unit number", this.unitNumber);
+
+        const list = getIndices(this.startDate, this.startDate, this.endDate, 13);
+
+        list.forEach(index => {
+          const day = moment(this.startDate).add(index, "days").toDate().toString();
+          console.warn("day is ", day);
+        })
     }
 
     this.unitWidth = this.view.size[0] / this.unitNumber;
@@ -303,6 +373,24 @@ export class AxisStore {
 
     return this.generateNumberLabels(options.numberRange, options.numberGap);
 
+  }
+
+  generateDateInterval() {
+    this.dateIntervalLengths = getIntervalLengths(this.startDate, this.endDate);
+    let totalYears = this.endDate.getFullYear() - this.startDate.getFullYear();
+
+    if (this.startDate.getMonth() == 0 || this.startDate.getDate()) {
+      totalYears += 1;
+    }
+
+    let level = Math.floor(Math.log2(totalYears));
+    let daysInAYear = this.dateIntervalLengths[this.dateIntervalLengths.length - 1];
+
+    while (level > 0) {
+      daysInAYear *= 2;
+      this.dateIntervalLengths.push(daysInAYear);
+      level--;
+    }
   }
 
   generateDateLabels(startDate: string | Date, endDate: string | Date) {
@@ -641,29 +729,64 @@ export class AxisStore {
       const unitH = unitWidth * curScale;
       const maxHeight = this.maxLabelHeight === 0 ? preSetMaxHeight : maxLabelHeight;
 
-      if (this.interval * unitH <= maxHeight) {
-        while (this.interval * unitH <= maxHeight) {
-          this.interval *= 2;
+      if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
+        if (this.interval * unitH <= maxHeight) {
+          while (this.interval * unitH <= maxHeight) {
+            this.interval *= 2;
+          }
+        } else {
+          while (this.lowerInterval * unitH > maxHeight) {
+            this.interval /= 2;
+            this.lowerInterval = this.interval === 1 ? 0 : this.interval / 2;
+          }
         }
-      } else {
-        while (this.lowerInterval * unitH > maxHeight) {
-          this.interval /= 2;
-          this.lowerInterval = this.interval === 1 ? 0 : this.interval / 2;
+      } else if (this.type === AxisDataType.DATE) {
+        this.interval = this.dateIntervalLengths[this.scaleLevel];
+
+        if (this.interval * unitH <= maxHeight) {
+          while (this.interval * unitH <= maxHeight) {
+            this.scaleLevel++;
+            this.interval = this.dateIntervalLengths[this.scaleLevel];
+          }
+        } else {
+          while (this.lowerInterval * unitH > maxHeight) {
+            this.scaleLevel--;
+            this.interval = this.dateIntervalLengths[this.scaleLevel];
+            if (this.scaleLevel === 0) this.lowerInterval = 0;
+            else this.lowerInterval = this.dateIntervalLengths[this.scaleLevel - 1];
+          }
         }
       }
-
     } else {
       const unitW = unitWidth * curScale;
       const maxWidth = maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
 
-      if (this.interval * unitW <= maxWidth) {
-        while (this.interval * unitW <= maxWidth) {
-          this.interval *= 2;
+      if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
+        if (this.interval * unitW <= maxWidth) {
+          while (this.interval * unitW <= maxWidth) {
+            this.interval *= 2;
+          }
+        } else {
+          while (this.lowerInterval * unitW > maxWidth) {
+            this.interval /= 2;
+            this.lowerInterval = this.interval === 1 ? 0 : this.interval / 2;
+          }
         }
-      } else {
-        while (this.lowerInterval * unitW > maxWidth) {
-          this.interval /= 2;
-          this.lowerInterval = this.interval === 1 ? 0 : this.interval / 2;
+      } else if (this.type === AxisDataType.DATE) {
+        this.interval = this.dateIntervalLengths[this.scaleLevel];
+
+        if (this.interval * unitW <= maxWidth) {
+          while (this.interval * unitW <= maxWidth) {
+            this.scaleLevel++;
+            this.interval = this.dateIntervalLengths[this.scaleLevel];
+          }
+        } else {
+          while (this.lowerInterval * unitW > maxWidth) {
+            this.scaleLevel--;
+            this.interval = this.dateIntervalLengths[this.scaleLevel];
+            if (this.scaleLevel === 0) this.lowerInterval = 0;
+            else this.lowerInterval = this.dateIntervalLengths[this.scaleLevel - 1];
+          }
         }
       }
     }
@@ -704,50 +827,196 @@ export class AxisStore {
       }
     }
 
-    if (this.preInterval < this.interval) {
-      const s = Math.ceil(start / this.preInterval) * this.preInterval;
-      const e = Math.floor(end / this.preInterval) * this.preInterval;
-      for (let i = s; i <= e; i += this.preInterval) {
-        if (this.bucketMap.has(i) && i % this.interval !== 0) {
-          const bucket = this.bucketMap.get(i);
-          bucket.display = false;
-          this.providers.labels.remove(bucket.label);
-          this.providers.ticks.remove(bucket.tick);
+    // remove buckets at lower level
+    if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
+      if (this.preInterval < this.interval) {
+        const s = Math.ceil(start / this.preInterval) * this.preInterval;
+        const e = Math.floor(end / this.preInterval) * this.preInterval;
+
+        for (let i = s; i <= e; i += this.preInterval) {
+          if (this.bucketMap.has(i) && i % this.interval !== 0) {
+            const bucket = this.bucketMap.get(i);
+            if (bucket.display) {
+              bucket.display = false;
+              this.providers.labels.remove(bucket.label);
+              this.providers.ticks.remove(bucket.tick);
+            }
+          }
         }
       }
+
+    } else if (this.type === AxisDataType.DATE) {
+      for (let i = start; i <= end; i++) {
+
+        if (this.bucketMap.has(i)) {
+          const day = moment(this.startDate).add(i, 'days').toDate();
+          const level = getDayLevel(this.startDate, day);
+
+          if (level < this.scaleLevel) {
+            const bucket = this.bucketMap.get(i);
+
+            if (bucket.display) {
+              bucket.display = false;
+              this.providers.labels.remove(bucket.label);
+              this.providers.ticks.remove(bucket.tick);
+            }
+          }
+
+        }
+      }
+
     }
 
-    // remove old buckets
+    // update index range
     this.indexRange = [start, end];
   }
 
+  getLabelText(index: number) {
+    if (this.type === AxisDataType.LABEL) {
+      return this.labels[index];
+    } else if (this.type === AxisDataType.NUMBER) {
+      return `${this.numberRange[0] + index * this.numberGap}`;
+    } else if (this.type === AxisDataType.DATE) {
+      const startDate = this.startDate;
+      const currentDate = moment(startDate).add(index, 'days').toDate();
+      return `${currentDate.getFullYear()}-${monthNames[currentDate.getMonth()]}-${currentDate.getDate()}`;
+    }
+  }
+
   bucketMap: Map<number, Bucket> = new Map<number, Bucket>();
+
+  setBucket(index: number, position: Vec2, alpha: number) {
+    const {
+      labelColor,
+      labelPadding,
+      labelSize,
+      tickLength,
+      tickWidth
+    } = this;
+
+    if (this.bucketMap.has(index)) {
+      const bucket = this.bucketMap.get(index);
+
+      bucket.label.origin = position;
+      bucket.label.color = [
+        labelColor[0],
+        labelColor[1],
+        labelColor[2],
+        alpha
+      ];
+      bucket.label.anchor = {
+        padding: labelPadding,
+        type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
+      }
+
+      bucket.tick.start = position;
+      bucket.tick.end = [position[0], position[1] + tickLength];
+      bucket.tick.startColor = [
+        bucket.tick.startColor[0],
+        bucket.tick.startColor[1],
+        bucket.tick.startColor[2],
+        0.5 + 0.5 * alpha
+      ];
+
+      bucket.tick.endColor = [
+        bucket.tick.endColor[0],
+        bucket.tick.endColor[1],
+        bucket.tick.endColor[2],
+        0.5 + 0.5 * alpha
+      ];
+
+      if (!bucket.display) {
+        bucket.display = true;
+        this.providers.labels.add(bucket.label);
+        this.providers.ticks.add(bucket.tick);
+      }
+    } else {
+      const text = this.getLabelText(index);
+
+      const label = new LabelInstance({
+        anchor: {
+          padding: labelPadding,
+          type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
+        },
+        color: [labelColor[0], labelColor[1], labelColor[2], alpha],
+        fontSize: labelSize,
+        origin: position,
+        text,
+        onReady: label => {
+          if (label.size[1] > this.maxLabelHeight) {
+            this.maxLabelHeight = label.size[1];
+          }
+
+          if (label.size[0] > this.maxLabelWidth) {
+            this.maxLabelWidth = label.size[0];
+            if (this.maxLabelWidth > this.preSetMaxWidth) {
+              this.updateInterval();
+              this.updateIndexRange();
+              this.layoutHorizon();
+            }
+          }
+        }
+      });
+
+      const tick = new EdgeInstance({
+        start: position,
+        end: [position[0], position[1] + tickLength],
+        thickness: [tickWidth, tickWidth],
+        startColor: [1, 1, 1, 0.5 + 0.5 * alpha],
+        endColor: [1, 1, 1, 0.5 + 0.5 * alpha]
+      })
+
+      const bucket: Bucket = { label, tick, display: true };
+
+      this.bucketMap.set(index, bucket);
+      this.providers.labels.add(bucket.label);
+      this.providers.ticks.add(bucket.tick);
+    }
+  }
+
+  layoutLabelOrNumber(lowerScale: number, higherScale: number) {
+    const {
+      higherInterval,
+      interval,
+      scale,
+      unitWidth,
+      view
+    } = this;
+
+    const curScale = 0.5 * Math.pow(2, scale);
+    const unitW = unitWidth * curScale;
+    const origin = view.origin;
+
+    const start = Math.ceil(this.indexRange[0] / interval) * interval;
+    const end = Math.floor(this.indexRange[1] / interval) * interval;
+
+    const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
+
+    for (let i = start; i <= end; i += interval) {
+      const x = origin[0] + (i + 0.5) * unitW + this.offset;
+      let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+      if (i % higherInterval === 0) alpha = 1;
+
+      this.setBucket(i, [x, origin[1]], alpha);
+    }
+  }
 
   layoutHorizon() {
     const {
       higherInterval,
       interval,
       lowerInterval,
-      labelColor,
-      labelPadding,
-      labelSize,
       maxLabelWidth,
-      maxRange,
       preSetMaxWidth,
       scale,
-      tickLength,
-      tickWidth,
       unitWidth,
-      view,
-      viewRange
+      view
     } = this;
 
     const curScale = 0.5 * Math.pow(2, scale)
     const unitW = unitWidth * curScale;
-    const intervalWidth = interval * unitW;
     const origin = view.origin;
 
-    console.warn("maxLabel width", maxLabelWidth);
     const maxBucketWidth = maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
     const lowerScale = maxBucketWidth / (unitWidth * interval);
     const higherScale = lowerInterval === 0 ?
@@ -755,94 +1024,41 @@ export class AxisStore {
       maxBucketWidth / (unitWidth * lowerInterval);
 
     const start = Math.ceil(this.indexRange[0] / interval) * interval;
-    //Math.ceil((viewRange[0] - maxRange[0]) / intervalWidth) * interval;
     const end = Math.floor(this.indexRange[1] / interval) * interval;
-    // Math.floor((viewRange[1] - maxRange[0]) / intervalWidth) * interval;
-
-    console.warn("start", start, "end", end, "interval", this.interval);
-    console.warn("diveid1", start / this.interval, end / this.interval);
 
     const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
 
+    if (this.type === AxisDataType.NUMBER || this.type === AxisDataType.LABEL) {
+      for (let i = start; i <= end; i += interval) {
+        const x = origin[0] + (i + 0.5) * unitW + this.offset;
+        let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+        if (i % higherInterval === 0) alpha = 1;
 
-    for (let i = start; i <= end; i += interval) {
-      const x = origin[0] + (i + 0.5) * unitW + this.offset;
-      let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
-      if (i % higherInterval === 0) alpha = 1;
-
-      if (this.bucketMap.has(i)) {
-        const bucket = this.bucketMap.get(i);
-
-        bucket.label.origin = [x, origin[1]];
-        bucket.label.color = [
-          labelColor[0],
-          labelColor[1],
-          labelColor[2],
-          alpha
-        ];
-
-        bucket.tick.start = [x, origin[1]];
-        bucket.tick.end = [x, origin[1] + tickLength];
-        bucket.tick.startColor = [
-          bucket.tick.startColor[0],
-          bucket.tick.startColor[1],
-          bucket.tick.startColor[2],
-          0.5 + 0.5 * alpha
-        ];
-
-        bucket.tick.endColor = [
-          bucket.tick.endColor[0],
-          bucket.tick.endColor[1],
-          bucket.tick.endColor[2],
-          0.5 + 0.5 * alpha
-        ];
-
-        if (!bucket.display) {
-          bucket.display = true;
-          this.providers.labels.add(bucket.label);
-          this.providers.ticks.add(bucket.tick);
-        }
-      } else {
-        const text = `${i}`; // change later
-
-        const label = new LabelInstance({
-          anchor: {
-            padding: labelPadding,
-            type: AnchorType.TopMiddle
-          },
-          color: [labelColor[0], labelColor[1], labelColor[2], alpha],
-          fontSize: labelSize,
-          origin: [x, origin[1]],
-          text,
-          onReady: label => {
-            if (label.size[1] > this.maxLabelHeight) {
-              this.maxLabelHeight = label.size[1];
-            }
-
-            if (label.size[0] > this.maxLabelWidth) {
-              this.maxLabelWidth = label.size[0];
-              if (this.maxLabelWidth > this.preSetMaxWidth) {
-                this.updateInterval();
-                this.updateIndexRange();
-                this.layoutHorizon();
-              }
-            }
-          }
-        });
-
-        const tick = new EdgeInstance({
-          start: [x, origin[1]],
-          end: [x, origin[1] + tickLength],
-          thickness: [tickWidth, tickWidth],
-          startColor: [1, 1, 1, 0.5 + 0.5 * alpha],
-          endColor: [1, 1, 1, 0.5 + 0.5 * alpha]
-        })
-
-        const bucket: Bucket = { label, tick, display: true };
-        this.bucketMap.set(i, bucket);
-        this.providers.labels.add(bucket.label);
-        this.providers.ticks.add(bucket.tick);
+        this.setBucket(i, [x, origin[1]], alpha);
       }
+    } else if (this.type === AxisDataType.DATE) {
+      this.layoutDateLabels(alphaScale, lowerScale, higherScale);
+      /*if (this.scaleLevel <= 7) {
+        this.layoutDateLabels(alphaScale, lowerScale, higherScale);
+      } else {
+        const isFirstDay = this.startDate.getMonth() === 0 && this.startDate.getDate() === 0;
+        const firstYear = this.startDate.getFullYear();
+        const startYear = isFirstDay ? firstYear : firstYear + 1;
+        const endYear = this.endDate.getFullYear();
+
+        const yearInterval = Math.pow(2, this.scaleLevel - 8);
+        for (let y = startYear; y <= endYear; y += yearInterval) {
+          const firstDay = new Date(y, 0, 1);
+          const index = moment(firstDay).diff(moment(this.startDate), 'days');
+          const x = origin[0] + (index + 0.5) * unitW + this.offset;
+          let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+          if (y % (yearInterval * 2) === 0) alpha = 1;
+
+          this.setBucket(index, [x, origin[1]], alpha);
+        }
+      }*/
+
+
     }
   }
 
@@ -851,24 +1067,15 @@ export class AxisStore {
       higherInterval,
       interval,
       lowerInterval,
-      labelColor,
-      labelPadding,
-      labelSize,
       maxLabelHeight,
-      maxRange,
       preSetMaxHeight,
       scale,
-      tickLength,
-      tickWidth,
-
       unitHeight,
-      view,
-      viewRange
+      view
     } = this;
 
     const curScale = 0.5 * Math.pow(2, scale)
     const unitH = unitHeight * curScale;
-    const intervalWidth = interval * unitH;
     const origin = view.origin;
 
     const maxBucketHeight = maxLabelHeight === 0 ? preSetMaxHeight : maxLabelHeight;
@@ -877,92 +1084,88 @@ export class AxisStore {
       maxBucketHeight / (unitHeight * interval * 0.5) :
       maxBucketHeight / (unitHeight * lowerInterval);
 
-    const start = Math.ceil(this.indexRange[0] / interval) * interval;
-    const end = Math.floor(this.indexRange[1] / interval) * interval;
 
     const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
 
-    for (let i = start; i <= end; i += interval) {
-      const y = origin[1] - (i + 0.5) * unitH - this.offset;
-      let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
-      if (i % higherInterval === 0) alpha = 1;
+    if (this.type === AxisDataType.NUMBER || this.type === AxisDataType.LABEL) {
+      const start = Math.ceil(this.indexRange[0] / interval) * interval;
+      const end = Math.floor(this.indexRange[1] / interval) * interval;
 
-      if (this.bucketMap.has(i)) {
-        const bucket = this.bucketMap.get(i);
+      for (let i = start; i <= end; i += interval) {
+        const y = origin[1] - (i + 0.5) * unitH - this.offset;
+        let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+        if (i % higherInterval === 0) alpha = 1;
 
-        bucket.label.origin = [origin[0], y];
-        bucket.label.color = [
-          labelColor[0],
-          labelColor[1],
-          labelColor[2],
-          alpha
-        ];
-
-        bucket.tick.start = [origin[0] - tickLength, y];
-        bucket.tick.end = [origin[0], y];
-        bucket.tick.startColor = [
-          bucket.tick.startColor[0],
-          bucket.tick.startColor[1],
-          bucket.tick.startColor[2],
-          0.5 + 0.5 * alpha
-        ];
-
-        bucket.tick.endColor = [
-          bucket.tick.endColor[0],
-          bucket.tick.endColor[1],
-          bucket.tick.endColor[2],
-          0.5 + 0.5 * alpha
-        ];
-
-        if (!bucket.display) {
-          bucket.display = true;
-          this.providers.labels.add(bucket.label);
-          this.providers.ticks.add(bucket.tick);
-        }
-      } else {
-        const text = `${i}`; // change later
-
-        const label = new LabelInstance({
-          anchor: {
-            padding: labelPadding,
-            type: AnchorType.MiddleRight
-          },
-          color: [labelColor[0], labelColor[1], labelColor[2], alpha],
-          fontSize: labelSize,
-          origin: [origin[0], y],
-          text,
-          onReady: label => {
-            if (label.size[1] > this.maxLabelHeight) {
-              this.maxLabelHeight = label.size[1];
-              if (this.maxLabelHeight > this.preSetMaxHeight) {
-                this.updateInterval();
-                this.updateIndexRange();
-                this.layoutHorizon();
-              }
-            }
-
-            if (label.size[0] > this.maxLabelWidth) {
-              this.maxLabelWidth = label.size[0];
-
-            }
-          }
-        });
-
-        const tick = new EdgeInstance({
-          start: [origin[0] - tickLength, y],
-          end: [origin[0], y],
-          thickness: [tickWidth, tickWidth],
-          startColor: [1, 1, 1, 0.5 + 0.5 * alpha],
-          endColor: [1, 1, 1, 0.5 + 0.5 * alpha]
-        })
-
-        const bucket: Bucket = { label, tick, display: true };
-        this.bucketMap.set(i, bucket);
-        this.providers.labels.add(bucket.label);
-        this.providers.ticks.add(bucket.tick);
+        this.setBucket(i, [origin[0], y], alpha);
+      }
+    } else if (this.type === AxisDataType.DATE) {
+      if (this.scaleLevel <= 7) {
+        this.layoutDateLabels(alphaScale, lowerScale, higherScale);
       }
     }
 
+  }
+
+
+
+  layoutDateLabels(alphaScale: number, lowerScale: number, higherScale: number) {
+    const {
+      scale,
+      unitWidth,
+      unitHeight,
+      view,
+    } = this;
+
+    const curScale = 0.5 * Math.pow(2, scale)
+    const unitH = unitHeight * curScale;
+    const unitW = unitWidth * curScale;
+    const origin = view.origin;
+
+    const sd = moment(this.startDate).add(this.indexRange[0], 'days').toDate();
+    const ed = moment(this.startDate).add(this.indexRange[1], 'days').toDate();
+
+    const indices = getIndices(this.startDate, sd, ed, this.scaleLevel);
+    console.warn("scale level", this.scaleLevel, "indices", indices);
+    // should be modified using, try not to use this
+    for (let i = 0; i < indices.length; i++) {
+      const index = indices[i];
+      const day = moment(this.startDate).add(index, 'days').toDate();
+      const level = getDayLevel(this.startDate, day);
+
+      if (this.verticalLayout) {
+        const y = origin[1] - (index + 0.5) * unitH - this.offset;
+        let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+        if (level >= this.scaleLevel + 1) alpha = 1;
+        this.setBucket(index, [origin[0], y], alpha);
+      } else {
+        const x = origin[0] + (index + 0.5) * unitW + this.offset;
+        let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+        if (level >= this.scaleLevel + 1) alpha = 1;
+        this.setBucket(index, [x, origin[1]], alpha);
+      }
+
+    }
+
+    // year start day
+    /*const startDay = moment(this.startDate).add(start, 'days').toDate();
+    const endDay = moment(this.startDate).add(end, 'days').toDate();
+
+    const isFirstDay = startDay.getMonth() === 0 && startDay.getDate() === 0;
+    const firstYear = startDay.getFullYear();
+    const startYear = isFirstDay ? firstYear : firstYear + 1;
+    const endYear = endDay.getFullYear();
+
+    const yearInterval = this.scaleLevel >= 8 ? Math.pow(2, this.scaleLevel - 8) : 1;
+    console.warn("year intervale", yearInterval);
+    for (let y = startYear; y <= endYear; y += yearInterval) {
+      const firstDay = new Date(y, 0, 1);
+      const index = moment(firstDay).diff(moment(this.startDate), 'days');
+      const x = origin[0] + (index + 0.5) * unitW + this.offset;
+      let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+      if (this.scaleLevel < 8 || y % (yearInterval * 2) === 0) alpha = 1;
+
+      this.setBucket(index, [x, origin[1]], alpha);
+    }*/
   }
 
   preInterval: number = 1;
@@ -972,12 +1175,52 @@ export class AxisStore {
     const s = Math.ceil(start / interval) * interval;
     const e = Math.floor(end / interval) * interval;
 
-    for (let i = s; i <= e; i += interval) {
-      if (this.bucketMap.has(i)) {
-        const bucket = this.bucketMap.get(i);
-        bucket.display = false;
-        this.providers.labels.remove(bucket.label);
-        this.providers.ticks.remove(bucket.tick);
+    if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
+      for (let i = s; i <= e; i += interval) {
+        if (this.bucketMap.has(i)) {
+          const bucket = this.bucketMap.get(i);
+          bucket.display = false;
+          this.providers.labels.remove(bucket.label);
+          this.providers.ticks.remove(bucket.tick);
+        }
+      }
+    } else {
+      for (let i = start; i <= end; i++) {
+        const day = moment(this.startDate).add(i, 'days').toDate();
+
+        if (this.bucketMap.has(i)) {
+
+          const bucket = this.bucketMap.get(i);
+
+          if (bucket.display) {
+            bucket.display = false;
+            this.providers.labels.remove(bucket.label);
+            this.providers.ticks.remove(bucket.tick);
+          }
+
+        }
+
+      }
+    }
+
+  }
+
+  removeDateBuckets(startDate: Date, endDate: Date, scaleLevel: number) {
+    for (let i = 0; i < this.unitNumber; i++) {
+      const day = moment(startDate).add(i, 'days').toDate();
+      const level = getDayLevel(this.startDate, day);
+
+      if (level === scaleLevel) {
+
+        if (this.bucketMap.get(i)) {
+          const bucket = this.bucketMap.get(i);
+
+          if (bucket.display) {
+            bucket.display = false;
+            this.providers.labels.remove(bucket.label);
+            this.providers.ticks.remove(bucket.tick);
+          }
+        }
       }
     }
   }
@@ -994,13 +1237,8 @@ export class AxisStore {
         window.innerHeight - origin[1] + height
       ];
 
-      /*this.maxRange = [
-        window.innerHeight - origin[1],
-        window.innerHeight - origin[1] + height
-      ];*/
     } else {
       this.viewRange = [origin[0], origin[0] + width];
-      // this.maxRange = [origin[0], origin[0] + width];
     }
 
     this.maxRange = this.viewRange;
@@ -1075,7 +1313,6 @@ export class AxisStore {
     this.offset = this.maxRange[0] - this.viewRange[0];
 
     this.updateInterval();
-    console.warn("Inteval new", this.interval, "maxWidth", this.maxLabelWidth);
     this.updateIndexRange();
     this.layoutLabels2();
   }
