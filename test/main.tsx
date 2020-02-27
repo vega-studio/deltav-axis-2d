@@ -49,16 +49,15 @@ async function makeSurface(container: HTMLElement) {
       controller: new BasicCamera2DController({
         camera: cameras.main,
         panFilter: (offset: [number, number, number]) => {
-          axis1.shift(offset);
+          //axis1.shift(offset);
           axis2.shift(offset);
-          axis3.shift(offset);
+          //axis3.shift(offset);
           return [0, 0, 0];
         },
         scaleFilter: (scale: [number, number, number]) => {
-          //console.warn("scale", view);
-          axis1.zoom(mouse, scale);
+          //axis1.zoom(mouse, scale);
           axis2.zoom(mouse, scale)
-          axis3.zoom(mouse, scale)
+          //axis3.zoom(mouse, scale)
           return [0, 0, 0];
         },
       }),
@@ -122,9 +121,9 @@ async function start() {
   console.log('READY');
 
   // Make our axis component
-  axis1 = new Axis({
+  /*axis1 = new Axis({
     view: {
-      origin: [150, 400],
+      origin: [150, 600],
       size: [1200, 500],
     },
     labels: names,
@@ -135,7 +134,7 @@ async function start() {
     tickWidth: 2,
     tickLength: 10,
     type: AxisDataType.LABEL,
-  });
+  });*/
 
   axis2 = new Axis({
     view: {
@@ -155,9 +154,9 @@ async function start() {
   });
 
 
-  axis3 = new Axis({
+  /*axis3 = new Axis({
     view: {
-      origin: [150, 800],
+      origin: [200, 800],
       size: [1200, 500],
     },
     labels: names,
@@ -170,7 +169,7 @@ async function start() {
     type: AxisDataType.DATE,
     startDate: "01/08/2020",
     endDate: new Date(2136, 1, 1),
-  });
+  });*/
 
   console.log(surface.providers.labels === axis1.store.providers.labels);
 }
