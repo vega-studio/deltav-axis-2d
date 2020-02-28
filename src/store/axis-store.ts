@@ -611,7 +611,7 @@ export class AxisStore {
     if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
       this.removeLabelOrNumberBuckets(start, end, interval);
     } else {
-      this.removeDateBuckets(start, end, this.preScaleLevel);
+      this.removeDateBuckets(start, end, 0);
     }
   }
 
@@ -640,7 +640,7 @@ export class AxisStore {
           const bucket = this.bucketMap.get(index);
           const day = moment(this.startDate).add(index, 'days').toDate();
           const level = getDayLevel(this.startDate, day, this.totalYears);
-          const toRemove = higherLevel > 0 || level === 0;
+          const toRemove = ((higherLevel && higherLevel > 0) || !higherLevel) || level === 0;
 
           if (bucket.display && toRemove) {
             bucket.display = false;
@@ -713,6 +713,13 @@ export class AxisStore {
         } else {
           while (this.lowerInterval * unitH > maxHeight) {
             this.scaleLevel--;
+            this.interval = this.dateIntervalLengths[this.scaleLevel];
+            if (this.scaleLevel === 0) this.lowerInterval = 0;
+            else this.lowerInterval = this.dateIntervalLengths[this.scaleLevel - 1];
+          }
+
+          if (this.interval * unitH <= maxHeight) {
+            this.scaleLevel++;
             this.interval = this.dateIntervalLengths[this.scaleLevel];
             if (this.scaleLevel === 0) this.lowerInterval = 0;
             else this.lowerInterval = this.dateIntervalLengths[this.scaleLevel - 1];
