@@ -32,7 +32,6 @@ export interface IAxisStoreOptions {
 export class AxisStore {
   // Layout mode
   verticalLayout: boolean = true;
-  axisChanged: boolean = false;
 
   // data type
   type: AxisDataType;
@@ -54,10 +53,12 @@ export class AxisStore {
   labelSize: number = 12;
   labelColor: Color = [0.8, 0.8, 0.8, 1.0];
   labelPadding: number = 10;
+
   maxLabelWidth: number = 0;
   maxLabelHeight: number = 0;
   preSetMaxWidth: number = 0;
   preSetMaxHeight: number = 0;
+
   maxLabelLengh: number = 15;
 
   labels: string[];
@@ -67,7 +68,6 @@ export class AxisStore {
   numberRange: Vec2 = [0, 100];
   numberGap: number = 1;
 
-  dates: dateLevel[]; ///
   startDate: Date = new Date(2000, 0, 1);
   endDate: Date = new Date();
   totalYears: number;
@@ -87,6 +87,7 @@ export class AxisStore {
   preScaleLevel: number = 0;
   indexRange: Vec2 = [-1, -1];
   dateIntervalLengths: number[];
+
   bucketMap: Map<number, Bucket> = new Map<number, Bucket>();
   auxLines: EdgeInstance[] = [];
   providers = {
@@ -109,10 +110,6 @@ export class AxisStore {
     this.init();
   }
 
-
-
-
-
   drawAuxilaryLines() {
     const origin = this.view.origin;
     const size = this.view.size;
@@ -132,6 +129,8 @@ export class AxisStore {
           endColor: [1, 0, 0, 1]
         })
 
+        this.auxLines.push(line1);
+        this.auxLines.push(line2);
         this.providers.ticks.add(line1);
         this.providers.ticks.add(line2);
       } else {
@@ -148,6 +147,8 @@ export class AxisStore {
           endColor: [1, 0, 0, 1]
         })
 
+        this.auxLines.push(line1);
+        this.auxLines.push(line2);
         this.providers.ticks.add(line1);
         this.providers.ticks.add(line2);
       }
@@ -248,7 +249,6 @@ export class AxisStore {
 
   generateDateInterval() {
     this.dateIntervalLengths = getIntervalLengths(this.startDate, this.endDate);
-
     let level = Math.floor(Math.log2(this.totalYears));
     let daysInAYear = this.dateIntervalLengths[this.dateIntervalLengths.length - 1];
 
@@ -261,12 +261,31 @@ export class AxisStore {
 
   changeAxis() {
     this.verticalLayout = !this.verticalLayout;
-    this.axisChanged = true;
+    this.removeAll();
     this.initChartMetrics();
-    this.layoutLabels();
-    this.axisChanged = false;
+    this.updateInterval();
+    this.indexRange = [0, this.unitNumber - 1];
+    this.drawAuxilaryLines();
+
+    setTimeout(() => {
+      this.layoutLabels();
+    }, 1);
   }
 
+  removeAll() {
+    this.bucketMap.forEach(bucket => {
+      if (bucket.display) {
+        bucket.display = false;
+        this.providers.labels.remove(bucket.label1);
+        if (bucket.label2) this.providers.labels.remove(bucket.label2);
+        this.providers.ticks.remove(bucket.tick);
+      }
+    })
+
+    this.providers.labels.clear();
+    this.providers.labels.clear();
+    this.bucketMap.clear();
+  }
 
   layoutLabels() {
     if (this.verticalLayout) {
@@ -276,7 +295,6 @@ export class AxisStore {
     }
   }
 
-
   getLabelText(index: number) {
     if (this.type === AxisDataType.LABEL) {
       return this.labels[index];
@@ -285,10 +303,12 @@ export class AxisStore {
     } else if (this.type === AxisDataType.DATE) {
       const startDate = this.startDate;
       const currentDate = moment(startDate).add(index, 'days').toDate();
-      return `${currentDate.getFullYear()}-${monthNames[currentDate.getMonth()]}-${currentDate.getDate()}`;
+      if (currentDate.getMonth() == 0 && currentDate.getDate() == 1) {
+        return `${currentDate.getFullYear()}`;
+      }
+      return `${monthNames[currentDate.getMonth()]} ${currentDate.getDate()}`;
     }
   }
-
 
   setBucket(index: number, position: Vec2, alpha: number) {
     const {
@@ -307,16 +327,32 @@ export class AxisStore {
       if (this.bucketMap.has(index)) {
         const bucket = this.bucketMap.get(index);
 
-        bucket.label.origin = position;
-        bucket.label.color = [
+        bucket.label1.origin = position;
+        bucket.label1.color = [
           labelColor[0],
           labelColor[1],
           labelColor[2],
           alpha
         ];
-        bucket.label.anchor = {
+
+        bucket.label1.anchor = {
           padding: labelPadding,
           type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
+        }
+
+        if (bucket.label2 && !this.verticalLayout) {
+          bucket.label2.origin = position;
+          bucket.label2.color = [
+            labelColor[0],
+            labelColor[1],
+            labelColor[2],
+            alpha
+          ];
+
+          bucket.label2.anchor = {
+            padding: labelPadding + labelSize,
+            type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
+          }
         }
 
         bucket.tick.start = position;
@@ -327,25 +363,26 @@ export class AxisStore {
           bucket.tick.startColor[0],
           bucket.tick.startColor[1],
           bucket.tick.startColor[2],
-          0.5 + 0.5 * alpha
+          alpha
         ];
 
         bucket.tick.endColor = [
           bucket.tick.endColor[0],
           bucket.tick.endColor[1],
           bucket.tick.endColor[2],
-          0.5 + 0.5 * alpha
+          alpha
         ];
 
         if (!bucket.display) {
           bucket.display = true;
-          this.providers.labels.add(bucket.label);
+          this.providers.labels.add(bucket.label1);
+          if (bucket.label2) this.providers.labels.add(bucket.label2);
           this.providers.ticks.add(bucket.tick);
         }
       } else {
         const text = this.getLabelText(index);
 
-        const label = new LabelInstance({
+        const label1 = new LabelInstance({
           anchor: {
             padding: labelPadding,
             type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
@@ -381,14 +418,39 @@ export class AxisStore {
             [position[0] - tickLength, position[1]] :
             [position[0], position[1] + tickLength],
           thickness: [tickWidth, tickWidth],
-          startColor: [1, 1, 1, 0.5 + 0.5 * alpha],
-          endColor: [1, 1, 1, 0.5 + 0.5 * alpha]
+          startColor: [1, 1, 1, alpha],
+          endColor: [1, 1, 1, alpha]
         })
+        const day = moment(this.startDate).add(index, 'days').toDate();
 
-        const bucket: Bucket = { label, tick, display: true };
-        this.bucketMap.set(index, bucket);
-        this.providers.labels.add(bucket.label);
-        this.providers.ticks.add(bucket.tick);
+        if (
+          this.type === AxisDataType.DATE &&
+          !this.verticalLayout &&
+          (day.getMonth() !== 0 ||
+            day.getDate() !== 1)
+        ) {
+          const label2 = new LabelInstance({
+            anchor: {
+              padding: labelPadding + labelSize,
+              type: AnchorType.TopMiddle
+            },
+            color: [labelColor[0], labelColor[1], labelColor[2], alpha],
+            fontSize: labelSize,
+            origin: position,
+            text: `${day.getFullYear()}`
+          });
+
+          const bucket: Bucket = { label1, label2, tick, display: true };
+          this.bucketMap.set(index, bucket);
+          this.providers.labels.add(bucket.label1);
+          this.providers.labels.add(bucket.label2);
+          this.providers.ticks.add(bucket.tick);
+        } else {
+          const bucket: Bucket = { label1, tick, display: true };
+          this.bucketMap.set(index, bucket);
+          this.providers.labels.add(bucket.label1);
+          this.providers.ticks.add(bucket.tick);
+        }
       }
     } else {
       if (this.bucketMap.has(index)) {
@@ -396,14 +458,13 @@ export class AxisStore {
 
         if (bucket.display) {
           bucket.display = false;
-          this.providers.labels.remove(bucket.label);
+          this.providers.labels.remove(bucket.label1);
+          if (bucket.label2) this.providers.labels.remove(bucket.label2);
           this.providers.ticks.remove(bucket.tick);
         }
       }
     }
   }
-
-
 
   layoutHorizon() {
     const {
@@ -489,7 +550,6 @@ export class AxisStore {
         this.setBucket(i, [x, origin[1]], alpha);
       }
     }
-
   }
 
   layoutDateLabels(alphaScale: number, lowerScale: number, higherScale: number) {
@@ -565,7 +625,8 @@ export class AxisStore {
 
         if (bucket.display) {
           bucket.display = false;
-          this.providers.labels.remove(bucket.label);
+          this.providers.labels.remove(bucket.label1);
+          if (bucket.label2) this.providers.labels.remove(bucket.label2);
           this.providers.ticks.remove(bucket.tick);
         }
       }
@@ -577,10 +638,14 @@ export class AxisStore {
       for (let index = start; index <= end; index++) {
         if (this.bucketMap.has(index)) {
           const bucket = this.bucketMap.get(index);
+          const day = moment(this.startDate).add(index, 'days').toDate();
+          const level = getDayLevel(this.startDate, day, this.totalYears);
+          const toRemove = higherLevel > 0 || level === 0;
 
-          if (bucket.display) {
+          if (bucket.display && toRemove) {
             bucket.display = false;
-            this.providers.labels.remove(bucket.label);
+            this.providers.labels.remove(bucket.label1);
+            if (bucket.label2) this.providers.labels.remove(bucket.label2);
             this.providers.ticks.remove(bucket.tick);
           }
         }
@@ -598,14 +663,14 @@ export class AxisStore {
 
           if (bucket.display) {
             bucket.display = false;
-            this.providers.labels.remove(bucket.label);
+            this.providers.labels.remove(bucket.label1);
+            if (bucket.label2) this.providers.labels.remove(bucket.label2);
             this.providers.ticks.remove(bucket.tick);
           }
         }
       }
     }
   }
-
 
   updateInterval() {
     const {
@@ -684,6 +749,14 @@ export class AxisStore {
             if (this.scaleLevel === 0) this.lowerInterval = 0;
             else this.lowerInterval = this.dateIntervalLengths[this.scaleLevel - 1];
           }
+
+          if (this.interval * unitW <= maxWidth) {
+            this.scaleLevel++;
+            this.interval = this.dateIntervalLengths[this.scaleLevel];
+            if (this.scaleLevel === 0) this.lowerInterval = 0;
+            else this.lowerInterval = this.dateIntervalLengths[this.scaleLevel - 1];
+          }
+
         }
       }
     }
@@ -704,8 +777,8 @@ export class AxisStore {
     const curScale = 0.5 * Math.pow(2, scale)
     const unit = this.verticalLayout ? unitHeight * curScale : unitWidth * curScale;
 
-    const start = Math.ceil((viewRange[0] - maxRange[0]) / unit);
-    const end = Math.floor((viewRange[1] - maxRange[0]) / unit);
+    const start = Math.floor((viewRange[0] - maxRange[0]) / unit);
+    const end = Math.ceil((viewRange[1] - maxRange[0]) / unit);
     const oldStart = this.indexRange[0];
     const oldEnd = this.indexRange[1];
 
@@ -731,47 +804,6 @@ export class AxisStore {
       }
     } else if (this.type === AxisDataType.DATE) {
       this.removeDateBuckets(start, end, this.scaleLevel - 1, this.scaleLevel - 1);
-      /*const s = moment(this.startDate).add(start, 'days').toDate();
-      const e = moment(this.startDate).add(end, 'days').toDate();
-      if (this.scaleLevel - 1 === 0) {
-        for (let index = start; index <= end; index++) {
-          if (this.bucketMap.has(index)) {
-            const day = moment(this.startDate).add(index, 'days').toDate();
-            const level = getDayLevel(this.startDate, day, this.totalYears);
-
-            if (level < this.scaleLevel) {
-              const bucket = this.bucketMap.get(index);
-
-              if (bucket.display) {
-                bucket.display = false;
-                this.providers.labels.remove(bucket.label);
-                this.providers.ticks.remove(bucket.tick);
-              }
-            }
-
-          }
-        }
-      } else {
-        const indices = getIndices(this.startDate, s, e, this.totalYears, this.scaleLevel - 1, this.scaleLevel - 1);
-
-        for (let i = 0; i <= indices.length; i++) {
-          const index = indices[i];
-
-          if (this.bucketMap.has(index)) {
-            // const day = moment(this.startDate).add(index, 'days').toDate();
-            // const level = getDayLevel(this.startDate, day, this.totalYears);
-
-            const bucket = this.bucketMap.get(index);
-
-            if (bucket.display) {
-              bucket.display = false;
-              this.providers.labels.remove(bucket.label);
-              this.providers.ticks.remove(bucket.tick);
-            }
-          }
-
-        }
-      }*/
     }
 
     // update index range
@@ -781,7 +813,7 @@ export class AxisStore {
   // Only update viewRange , then update offset and scale
   updateScale(mouse: Vec2, scale: Vec3) {
     const newScale = this.scale + (this.verticalLayout ? scale[1] : scale[0]);
-    this.scale = Math.max(newScale, 1);
+    this.scale = Math.min(Math.max(newScale, 1), Math.log2(2 * this.unitNumber));
     const curScale = 0.5 * Math.pow(2, this.scale);
     const width = this.view.size[0];
     const height = this.view.size[1];

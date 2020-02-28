@@ -43,8 +43,6 @@ function insert(
   e: number,
   indices: number[]
 ) {
-  // const monthStartDay = new Date(y, m, 1);
-  //// const baseIndex = moment(monthStartDay).diff(origin, 'days');
   if (index >= s && index <= e) indices.push(index + baseIndex - 1);
 }
 
@@ -290,7 +288,7 @@ export function getIndices(
 
   const ll = lowerLevel && lowerLevel > 1 ? lowerLevel : 1
 
-  if (ll > 7) {
+  if (ll >= 7) {
     const baseYear = om == 0 && od == 1 ? oy : oy + 1;
     const maxLevel = Math.floor(Math.log2(totalYears)) + 7;
     const visited: Set<Number> = new Set<Number>();
@@ -303,7 +301,12 @@ export function getIndices(
       let y = baseYear;
 
       while (y <= ey) {
-        if (!visited.has(y) && (y !== baseYear || i === maxLevel)) {
+        if (!visited.has(y)
+          && (
+            (y !== baseYear && (y - baseYear) % (2 * yearInterval) !== 0) ||
+            (y === baseYear && i === maxLevel)
+          )
+        ) {
           const firstDay = new Date(y, 0, 1);
 
           if (moment(firstDay).isBetween(startDate, endDate, null, "[]")) {
@@ -317,7 +320,7 @@ export function getIndices(
       }
     }
 
-  } else if (ll > 0 && ll <= 7) {
+  } else if (ll > 0 && ll < 7) {
     let hl = higherLevel && higherLevel < 7 ? higherLevel : 7;
 
     if (sy === ey) {

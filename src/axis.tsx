@@ -20,7 +20,8 @@ export class Axis {
       startDate: props.startDate,
       endDate: props.endDate,
       numberRange: props.numberRange,
-      numberGap: props.numberGap
+      numberGap: props.numberGap,
+      verticalLayout: props.verticalLayout
     });
   }
 

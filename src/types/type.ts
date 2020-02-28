@@ -11,7 +11,9 @@ export type Vec3 = [number, number, number];
 export type Color = [number, number, number, number];
 
 export type Bucket = {
-  label: LabelInstance;
-  tick: EdgeInstance;
   display: boolean;
+  tick: EdgeInstance;
+  label1: LabelInstance;
+  label2?: LabelInstance;
+  label3?: LabelInstance;
 }

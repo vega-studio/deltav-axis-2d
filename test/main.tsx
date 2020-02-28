@@ -11,6 +11,8 @@ let axis3: Axis;
 const parameters = {
   toggleLayout: () => {
     axis1.store.changeAxis();
+    axis2.store.changeAxis();
+    axis3.store.changeAxis();
   }
 }
 
@@ -49,15 +51,15 @@ async function makeSurface(container: HTMLElement) {
       controller: new BasicCamera2DController({
         camera: cameras.main,
         panFilter: (offset: [number, number, number]) => {
-          //axis1.shift(offset);
+          axis1.shift(offset);
           axis2.shift(offset);
-          //axis3.shift(offset);
+          axis3.shift(offset);
           return [0, 0, 0];
         },
         scaleFilter: (scale: [number, number, number]) => {
-          //axis1.zoom(mouse, scale);
+          axis1.zoom(mouse, scale);
           axis2.zoom(mouse, scale)
-          //axis3.zoom(mouse, scale)
+          axis3.zoom(mouse, scale)
           return [0, 0, 0];
         },
       }),
@@ -121,47 +123,48 @@ async function start() {
   console.log('READY');
 
   // Make our axis component
-  /*axis1 = new Axis({
+  axis1 = new Axis({
     view: {
-      origin: [150, 600],
+      origin: [200, 550],
       size: [1200, 500],
     },
     labels: names,
     providers: surface.providers,
     labelColor: [1, 0.5, 0, 1],
-    labelSize: 18,
+    labelSize: 22,
     labelPadding: 15,
     tickWidth: 2,
     tickLength: 10,
     type: AxisDataType.LABEL,
-  });*/
+    verticalLayout: false
+  });
 
   axis2 = new Axis({
     view: {
-      origin: [150, 600],
+      origin: [420, 700],
       size: [1200, 500],
     },
     labels: names,
     providers: surface.providers,
-    labelColor: [1, 0.5, 0, 1],
-    labelSize: 18,
+    labelColor: [0, 0.5, 0.8, 1],
+    labelSize: 20,
     labelPadding: 15,
     tickWidth: 2,
     tickLength: 10,
     type: AxisDataType.NUMBER,
     numberRange: [-2725120736, -2372919733], //[1, 10000000000],
-    numberGap: 1 // 0.369,
+    numberGap: 1,
+    verticalLayout: false
   });
 
-
-  /*axis3 = new Axis({
+  axis3 = new Axis({
     view: {
-      origin: [200, 800],
+      origin: [640, 850],
       size: [1200, 500],
     },
     labels: names,
     providers: surface.providers,
-    labelColor: [1, 0.5, 0, 1],
+    labelColor: [1, 0, 0.5, 1],
     labelSize: 18,
     labelPadding: 15,
     tickWidth: 2,
@@ -169,7 +172,8 @@ async function start() {
     type: AxisDataType.DATE,
     startDate: "01/08/2020",
     endDate: new Date(2136, 1, 1),
-  });*/
+    verticalLayout: false
+  });
 
   console.log(surface.providers.labels === axis1.store.providers.labels);
 }
