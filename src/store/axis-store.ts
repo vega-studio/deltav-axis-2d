@@ -1,6 +1,6 @@
 import { InstanceProvider, EdgeInstance, LabelInstance, Color, AnchorType } from "deltav";
-import { AxisDataType, Vec2, Vec3 } from "src/types";
-import { dateLevel, travelDates, getIntervalLengths } from "src/util/dateUtil";
+import { AxisDataType, Vec2, Vec3, Bucket } from "src/types";
+import { dateLevel, travelDates, getDayLevel, getIntervalLengths, getIndices } from "src/util/dateUtil";
 import moment from 'moment';
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -27,6 +27,7 @@ export interface IAxisStoreOptions {
   numberRange?: Vec2;
   numberGap?: number;
   maxLabelLength?: number;
+  verticalLayout?: boolean;
 }
 
 export class AxisStore {
@@ -36,10 +37,6 @@ export class AxisStore {
 
   // data type
   type: AxisDataType;
-
-  // Shape Instances Holders
-  labelInstances: LabelInstance[] = [];
-  tickLineInstances: EdgeInstance[] = [];
 
   // Axis Metrics
   view: {
@@ -54,28 +51,46 @@ export class AxisStore {
   labelSize: number = 12;
   labelColor: Color = [0.8, 0.8, 0.8, 1.0];
   labelPadding: number = 10;
+
   maxLabelWidth: number = 0;
   maxLabelHeight: number = 0;
-  maxLabelLengh: number = 5;
+  maxLabelLengh: number = 10;
+  decimalLength: number = 3;
   labels: string[];
   dates: dateLevel[];
 
   // Range
   maxRange: Vec2;
   viewRange: Vec2;
-  offset: number = 0;
-  scale: number = 1;
+  preSetMaxWidth: number = 0;
+  preSetMaxHeight: number = 0;
 
+  // Range
   numberRange: Vec2 = [0, 100];
   numberGap: number = 1;
 
   startDate: Date = new Date(2000, 0, 1);
   endDate: Date = new Date();
+  totalYears: number;
+  unitNumber: number = 0;
+  unitWidth: number;
+  unitHeight: number;
+  offset: number = 0;
+  scale: number = 1;
 
   // Interval info
   interval: number = 1;
+  lowerInterval: number = 0;
+  higherInterval: number = 2;
+  preInterval: number = 1;
+
+  scaleLevel: number = 0;
+  preScaleLevel: number = 0;
+  indexRange: Vec2 = [-1, -1];
   dateIntervalLengths: number[];
 
+  bucketMap: Map<number, Bucket> = new Map<number, Bucket>();
+  auxLines: EdgeInstance[] = [];
   providers = {
     ticks: new InstanceProvider<EdgeInstance>(),
     labels: new InstanceProvider<LabelInstance>()
@@ -83,6 +98,8 @@ export class AxisStore {
 
   constructor(options: IAxisStoreOptions) {
     this.view = options.view;
+    this.preSetMaxWidth = this.view.size[0] / 20;
+    this.preSetMaxHeight = options.labelSize || this.labelSize;
     this.tickWidth = options.tickWidth || this.tickWidth;
     this.tickLength = options.tickLength || this.tickLength;
     this.labelSize = options.labelSize || this.labelSize;
@@ -106,574 +123,131 @@ export class AxisStore {
       this.numberGap = options.numberGap || this.numberGap;
     }
 
-    this.labels = this.generateLabelTexts(options);
-
+    this.verticalLayout = options.verticalLayout === undefined ? this.verticalLayout : options.verticalLayout;
     Object.assign(this.providers, options.providers);
-
+    this.initType(options);
     this.init();
   }
 
-  init() {
-    this.updateChartMetrics();
+  drawAuxilaryLines() {
     const origin = this.view.origin;
-    const w = this.view.size[0];
-    const h = this.view.size[1];
-    const tickLength = this.tickLength;
-    const tickWidth = this.tickWidth;
-    const labelPadding = this.labelPadding;
-    const length = this.labels.length;
+    const size = this.view.size;
 
-    if (length != 0) {
+    if (this.auxLines.length === 0) {
       if (this.verticalLayout) {
-        const intHeight = h / length;
+        const line1 = new EdgeInstance({
+          start: origin,
+          end: [origin[0] - 40, origin[1]],
+          startColor: [1, 0, 0, 1],
+          endColor: [1, 0, 0, 1]
+        })
+        const line2 = new EdgeInstance({
+          start: [origin[0], origin[1] - size[1]],
+          end: [origin[0] - 40, origin[1] - size[1]],
+          startColor: [1, 0, 0, 1],
+          endColor: [1, 0, 0, 1]
+        })
 
-        for (let i = 0; i < length; i++) {
-          const y = origin[1] - (i + 0.5) * intHeight * this.scale + this.offset;
-          // tickLine
-          const tick = new EdgeInstance({
-            start: [origin[0], y],
-            end: [origin[0] - tickLength, y],
-            thickness: [tickWidth, tickWidth],
-            startColor: [1, 1, 1, 0.5],
-            endColor: [1, 1, 1, 0.5]
-          });
-
-          this.tickLineInstances.push(tick);
-          // label
-          const label = new LabelInstance({
-            anchor: {
-              padding: labelPadding,
-              type: AnchorType.MiddleRight
-            },
-            color: [this.labelColor[0], this.labelColor[1], this.labelColor[2], 0],
-            fontSize: this.labelSize,
-            origin: [origin[0], y],
-            text: this.labels[i],
-
-            onReady: label => {
-              if (label.size[0] > this.maxLabelWidth) {
-                this.maxLabelWidth = label.size[0];
-              }
-
-              if (label.size[1] > this.maxLabelHeight) {
-                this.maxLabelHeight = label.size[1];
-                this.layoutLabels();
-              }
-            }
-          });
-
-          this.labelInstances.push(label);
-
-          const curY = window.innerHeight - y;
-
-          if (curY >= this.viewRange[0] && curY <= this.viewRange[1]) {
-            this.providers.ticks.add(tick);
-            this.providers.labels.add(label)
-          }
-
-        }
+        this.auxLines.push(line1);
+        this.auxLines.push(line2);
+        this.providers.ticks.add(line1);
+        this.providers.ticks.add(line2);
       } else {
-        const intWidth = w / length;
+        const line1 = new EdgeInstance({
+          start: origin,
+          end: [origin[0], origin[1] - 40],
+          startColor: [1, 0, 0, 1],
+          endColor: [1, 0, 0, 1]
+        })
+        const line2 = new EdgeInstance({
+          start: [origin[0] + size[0], origin[1]],
+          end: [origin[0] + size[0], origin[1] - 40],
+          startColor: [1, 0, 0, 1],
+          endColor: [1, 0, 0, 1]
+        })
 
-        for (let i = 0; i < length; i++) {
-          const x = origin[0] + (i + 0.5) * intWidth * this.scale + this.offset;
-          // tickLine
-          const tick = new EdgeInstance({
-            start: [x, origin[1]],
-            end: [x, origin[1] + tickLength],
-            thickness: [tickWidth, tickWidth],
-            startColor: [1, 1, 1, 0.5],
-            endColor: [1, 1, 1, 0.5]
-          });
-
-          this.tickLineInstances.push(tick);
-
-          const labelText = this.labels[i];
-          const text = labelText.length > this.maxLabelLengh ?
-            labelText.substr(0, this.maxLabelLengh) : labelText;
-
-          // label
-          const label = new LabelInstance({
-            anchor: {
-              padding: labelPadding,
-              type: AnchorType.TopMiddle
-            },
-            color: [this.labelColor[0], this.labelColor[1], this.labelColor[2], 0],
-            fontSize: this.labelSize,
-            origin: [x, origin[1] + labelPadding],
-            text,
-            onReady: label => {
-              if (label.size[1] > this.maxLabelHeight) {
-                this.maxLabelHeight = label.size[1];
-              }
-
-              if (label.size[0] > this.maxLabelWidth) {
-                this.maxLabelWidth = label.size[0];
-                this.layoutLabels();
-              }
-            }
-          });
-
-          this.labelInstances.push(label);
-
-          if (x >= this.viewRange[0] && x <= this.viewRange[1]) {
-            this.providers.ticks.add(tick);
-            this.providers.labels.add(label);
-          }
-        }
-      }
-    }
-  }
-
-  generateLabelTexts(options: IAxisStoreOptions) {
-    const type = options.type;
-
-    if (type === AxisDataType.LABEL) {
-      if (!options.labels) {
-        console.error("With type LABEL, labels must be set.");
-        return null;
-      }
-
-      return options.labels;
-    }
-
-    if (type === AxisDataType.DATE) {
-      if (!options.startDate || !options.endDate) {
-        console.error("With type DATE, both startDate and endDate must be be set.");
-        return null;
-      }
-
-      return this.generateDateLabels(options.startDate, options.endDate);
-    }
-
-
-    if (!options.numberRange) {
-      console.error("With type NUMBER, numberRange must be be set.");
-      return null;
-    }
-
-    return this.generateNumberLabels(options.numberRange, options.numberGap);
-
-  }
-
-  generateDateLabels(startDate: string | Date, endDate: string | Date) {
-    const sd = typeof startDate === "string" ? new Date(startDate) : startDate;
-    const ed = typeof endDate === "string" ? new Date(endDate) : endDate;
-
-    const dates: dateLevel[] = [];
-    travelDates(sd, ed, dates);
-
-    const labelTexts: string[] = [];
-    const firstDays: dateLevel[] = [];
-
-    dates.forEach((date, i) => {
-      if (i === 0 || i === dates.length - 1) {
-        labelTexts.push(`${date.year} ${monthNames[date.month]} ${date.day}`)
-
-      } else {
-        if (date.month === 0 && date.day === 1) {
-          labelTexts.push(`${date.year} ${monthNames[date.month]}`);
-          firstDays.push(date);
-        } else if (date.day === 1) {
-          labelTexts.push(`${monthNames[date.month]} ${date.day}`);
-        } else {
-          labelTexts.push(`${date.day}`);
-        }
-      }
-    })
-
-    // firstDays.length means the number of first day of years
-    let dl = Math.floor(Math.log2(firstDays.length));
-
-    this.dateIntervalLengths = getIntervalLengths(sd, ed);
-    let daysInAYear = this.dateIntervalLengths[this.dateIntervalLengths.length - 1];
-
-    while (dl > 0) {
-      const delta = Math.pow(2, dl);
-      for (let i = 0; i < firstDays.length; i += delta) {
-        firstDays[i].level++;
-      }
-      daysInAYear *= 2;
-      this.dateIntervalLengths.push(daysInAYear);
-      dl--;
-    }
-
-    this.dates = dates;
-
-    return labelTexts;
-  }
-
-  generateNumberLabels(numberRange: Vec2, numberGap?: number) {
-    let gap = numberGap || 1;
-    const labels: string[] = [];
-
-    for (let i = numberRange[0]; i <= numberRange[1]; i += gap) {
-      labels.push(i.toString());
-    }
-
-    return labels;
-  }
-
-  setView(view: { origin: Vec2, size: Vec2 }) {
-    this.view = view;
-    this.updateChartMetrics();
-    this.layoutLabels();
-  }
-
-
-  setDateRange(startDate: string | Date, endDate: string | Date) {
-    const sd = typeof startDate === "string" ? new Date(startDate) : startDate;
-    const ed = typeof endDate === "string" ? new Date(endDate) : endDate;
-    const newLabels = this.generateDateLabels(startDate, endDate);
-    const newLength = moment(ed).diff(moment(sd), 'days') + 1;
-    const oldLength = this.labelInstances.length;
-    this.updateLabels(newLabels);
-  }
-
-  setNumberRange(start: number, end: number) {
-    const newLabels = this.generateNumberLabels([start, end], this.numberGap);
-    this.updateLabels(newLabels);
-  }
-
-  updateLabels(newLabels: string[]) {
-    const origin = this.view.origin;
-    const width = this.view.size[0];
-    const height = this.view.size[1];
-
-    this.labels = newLabels;
-    const newLength = newLabels.length;
-    const oldLength = this.labelInstances.length;
-
-    if (oldLength === newLength) {
-      for (let i = 0; i < this.labelInstances.length; i++) {
-        const instance = this.labelInstances[i];
-        this.updateLabel(instance, newLabels[i]);
+        this.auxLines.push(line1);
+        this.auxLines.push(line2);
+        this.providers.ticks.add(line1);
+        this.providers.ticks.add(line2);
       }
     } else {
       if (this.verticalLayout) {
-        const intHeight = height / newLength;
-        this.maxLabelHeight = 0;
-
-        for (let i = 0; i < newLength; i++) {
-          const y = origin[1] - (i + 0.5) * intHeight * this.scale + this.offset;
-
-          if (i < oldLength) {
-            const instance = this.labelInstances[i];
-            const tick = this.tickLineInstances[i];
-            this.updateLabel(instance, newLabels[i], tick, origin[0], y);
-          } else {
-            this.insertLabel(origin[0], y, newLabels[i]);
-          }
-        }
-
-
+        this.auxLines[0].start = origin;
+        this.auxLines[0].end = [origin[0] - 40, origin[1]];
+        this.auxLines[1].start = [origin[0], origin[1] - size[1]];
+        this.auxLines[1].end = [origin[0] - 40, origin[1] - size[1]];
       } else {
-        const intWidth = width / newLength;
-        this.maxLabelWidth = 0;
-
-        for (let i = 0; i < newLength; i++) {
-          const x = origin[0] + (i + 0.5) * intWidth * this.scale + this.offset;
-
-          if (i < oldLength) {
-            const instance = this.labelInstances[i];
-            const tick = this.tickLineInstances[i];
-            this.updateLabel(instance, newLabels[i], tick, x, origin[1]);
-          } else {
-            this.insertLabel(x, origin[1], newLabels[i]);
-          }
-        }
-      }
-
-      if (oldLength > newLength) {
-        while (this.labelInstances.length > newLength) {
-          const label = this.labelInstances.pop();
-          this.providers.labels.remove(label);
-          const tick = this.tickLineInstances.pop();
-          this.providers.ticks.remove(tick);
-        }
+        this.auxLines[0].start = origin;
+        this.auxLines[0].end = [origin[0], origin[1] - 40];
+        this.auxLines[1].start = [origin[0] + size[0], origin[1]];
+        this.auxLines[1].end = [origin[0] + size[0], origin[1] - 40];
       }
     }
   }
 
-  updateLabel(label: LabelInstance, text: string, tick?: EdgeInstance, x?: number, y?: number) {
-    label.text = text.length > this.maxLabelLengh ?
-      text.substr(0, this.maxLabelLengh) : text;
-
-    label.onReady = label => {
-      if (label.size[1] > this.maxLabelHeight) {
-        this.maxLabelHeight = label.size[1];
-        if (this.verticalLayout) this.layoutLabels();
-      }
-
-      if (label.size[0] > this.maxLabelWidth) {
-        this.maxLabelWidth = label.size[0];
-        if (!this.verticalLayout) this.layoutLabels();
-      }
-    }
-
-    if (tick !== undefined && x !== undefined && y !== undefined) {
-      label.origin = [x, y];
-      tick.start = [x, y];
-      tick.end = this.verticalLayout ? [x - this.tickLength, y] : [x, y + this.tickLength];
-    }
-
-  }
-
-  insertLabel(x: number, y: number, text: string) {
-    if (text.length > this.maxLabelLengh) {
-      text = text.substr(0, this.maxLabelLengh);
-    }
-
-    const label = new LabelInstance({
-      anchor: {
-        padding: this.labelPadding,
-        type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
-      },
-      color: [this.labelColor[0], this.labelColor[1], this.labelColor[2], 0],
-      fontSize: this.labelSize,
-      origin: [x, y],
-      text,
-      onReady: label => {
-        if (label.size[1] > this.maxLabelHeight) {
-          this.maxLabelHeight = label.size[1];
-        }
-
-        if (label.size[0] > this.maxLabelWidth) {
-          this.maxLabelWidth = label.size[0];
-          this.layoutLabels();
-        }
-
-      }
-    });
-
-    this.labelInstances.push(label);
-    this.providers.labels.add(label);
-
-    const tick = new EdgeInstance({
-      start: [x, y],
-      end: this.verticalLayout ? [x, y + this.tickLength] : [x - this.tickLength, y],
-      thickness: [this.tickWidth, this.tickWidth],
-      startColor: [1, 1, 1, 0.5],
-      endColor: [1, 1, 1, 0.5]
-    });
-
-    this.tickLineInstances.push(tick);
-    this.providers.ticks.add(tick);
-  }
-
-  changeAxis() {
-    this.verticalLayout = !this.verticalLayout;
-    this.axisChanged = true;
-    this.updateChartMetrics();
-    this.layoutLabels();
-    this.axisChanged = false;
-  }
-
-  layoutLabels() {
-    const length = this.labels.length;
-    const origin = this.view.origin;
-    const tickLength = this.tickLength;
-    const labelPadding = this.labelPadding;
+  init() {
+    this.initChartMetrics();
+    this.updateInterval();
 
     if (this.verticalLayout) {
-      const h = this.view.size[1];
-      const intHeight = h / length;
-
-      let intH = intHeight * this.scale;
-      let level = 0;
-      if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
-        this.interval = 1;
-
-        while (intH <= this.maxLabelHeight) {
-          intH *= 2;
-          this.interval *= 2;
-        }
-      } else if (this.type === AxisDataType.DATE) {
-        this.interval = this.dateIntervalLengths[level];
-
-        while (this.interval * intH <= this.maxLabelHeight) {
-          level++;
-          this.interval = this.dateIntervalLengths[level];
-        }
-      }
-
-      for (let i = 0; i < length; i++) {
-        const y = origin[1] - (i + 0.5) * intHeight * this.scale - this.offset;
-        // Label
-        const label = this.labelInstances[i];
-        const preY = window.innerHeight - label.origin[1];
-        const curY = window.innerHeight - y;
-
-        const preIn = preY >= this.viewRange[0] && preY <= this.viewRange[1];
-        const curIn = curY >= this.viewRange[0] && curY <= this.viewRange[1];
-
-        label.origin = [origin[0], y];
-        label.anchor = {
-          padding: labelPadding,
-          type: AnchorType.MiddleRight
-        };
-        // Tick
-        const tick = this.tickLineInstances[i];
-        tick.start = [origin[0] - tickLength, y];
-        tick.end = [origin[0], y];
-
-        if ((this.type === AxisDataType.LABEL && i % this.interval === 0) ||
-          (this.type === AxisDataType.NUMBER && i % this.interval === 0) ||
-          (this.type === AxisDataType.DATE && this.dates[i].level >= level)) {
-
-          label.color = [
-            label.color[0],
-            label.color[1],
-            label.color[2],
-            1
-          ];
-
-          tick.startColor = [
-            tick.startColor[0],
-            tick.startColor[1],
-            tick.startColor[2],
-            1
-          ];
-
-          tick.endColor = [
-            tick.endColor[0],
-            tick.endColor[1],
-            tick.endColor[2],
-            1
-          ];
-        } else {
-          label.color = [
-            label.color[0],
-            label.color[1],
-            label.color[2],
-            0
-          ];
-
-          tick.startColor = [
-            tick.startColor[0],
-            tick.startColor[1],
-            tick.startColor[2],
-            0.5
-          ];
-
-          tick.endColor = [
-            tick.endColor[0],
-            tick.endColor[1],
-            tick.endColor[2],
-            0.5
-          ];
-        }
-
-        if ((preIn || this.axisChanged) && !curIn) {
-          this.providers.labels.remove(label);
-          this.providers.ticks.remove(tick);
-        } else if ((!preIn || this.axisChanged) && curIn) {
-          this.providers.labels.add(label);
-          this.providers.ticks.add(tick);
-        }
-      }
+      this.layoutVertical();
     } else {
-      const w = this.view.size[0];
-      const intWidth = w / length;
-
-      let intW = intWidth * this.scale;
-      let level = 0;
-
-      if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
-        this.interval = 1;
-        while (intW <= this.maxLabelWidth) {
-          intW *= 2;
-          this.interval *= 2;
-        }
-      } else if (this.type === AxisDataType.DATE) {
-        this.interval = this.dateIntervalLengths[level];
-
-        while (this.interval * intW <= this.maxLabelWidth) {
-          level++;
-          this.interval = this.dateIntervalLengths[level];
-        }
-
-      }
-
-      for (let i = 0; i < length; i++) {
-        const x = origin[0] + (i + 0.5) * intWidth * this.scale + this.offset;
-        // Label
-        const label = this.labelInstances[i];
-        const preX = label.origin[0];
-
-        const preIn = preX >= this.viewRange[0] && preX <= this.viewRange[1];
-        const curIn = x >= this.viewRange[0] && x <= this.viewRange[1];
-
-        label.origin = [x, origin[1]];
-        label.anchor = {
-          padding: labelPadding,
-          type: AnchorType.TopMiddle
-        };
-
-        // Tick
-        const tick = this.tickLineInstances[i];
-        tick.start = [x, origin[1]];
-        tick.end = [x, origin[1] + tickLength];
-
-        if ((this.type === AxisDataType.LABEL && i % this.interval === 0) ||
-          (this.type === AxisDataType.NUMBER && i % this.interval === 0) ||
-          (this.type === AxisDataType.DATE && this.dates[i].level >= level)) {
-          label.color = [
-            label.color[0],
-            label.color[1],
-            label.color[2],
-            1
-          ];
-
-          tick.startColor = [
-            tick.startColor[0],
-            tick.startColor[1],
-            tick.startColor[2],
-            1
-          ];
-
-          tick.endColor = [
-            tick.endColor[0],
-            tick.endColor[1],
-            tick.endColor[2],
-            1
-          ];
-        } else {
-          label.color = [
-            label.color[0],
-            label.color[1],
-            label.color[2],
-            0
-          ];
-
-          tick.startColor = [
-            tick.startColor[0],
-            tick.startColor[1],
-            tick.startColor[2],
-            0.5
-          ];
-
-          tick.endColor = [
-            tick.endColor[0],
-            tick.endColor[1],
-            tick.endColor[2],
-            0.5
-          ];
-        }
-
-        if ((preIn || this.axisChanged) && !curIn) {
-          this.providers.labels.remove(label);
-          this.providers.ticks.remove(tick);
-        } else if ((!preIn || this.axisChanged) && curIn) {
-          this.providers.labels.add(label);
-          this.providers.ticks.add(tick);
-        }
-
-      }
+      this.layoutHorizon();
     }
+
+    this.drawAuxilaryLines();
   }
 
-  updateChartMetrics() {
+  initType(options: IAxisStoreOptions) {
+    this.type = options.type;
+
+    switch (this.type) {
+      case AxisDataType.LABEL:
+        if (!options.labels) {
+          console.error("With type LABEL, labels must be set.");
+          return;
+        }
+
+        this.labels = options.labels;
+        this.unitNumber = this.labels.length;
+        break;
+      case AxisDataType.NUMBER:
+        if (!options.numberRange) {
+          console.error("With type NUMBER, numberRange must be be set.");
+          return;
+        }
+
+        this.numberRange = options.numberRange;
+        this.numberGap = options.numberGap;
+        this.unitNumber = Math.floor((this.numberRange[1] - this.numberRange[0]) / this.numberGap) + 1;
+        break;
+      case AxisDataType.DATE:
+        if (!options.startDate || !options.endDate) {
+          console.error("With type DATE, both startDate and endDate must be be set.");
+          return;
+        }
+
+        const startDate = options.startDate;
+        const endDate = options.endDate;
+        this.startDate = typeof startDate === "string" ? new Date(startDate) : startDate;
+        this.endDate = typeof endDate === "string" ? new Date(endDate) : endDate;
+        this.unitNumber = moment(this.endDate).diff(moment(this.startDate), 'days') + 1;
+        this.totalYears = this.endDate.getFullYear() - this.startDate.getFullYear();
+
+        if (this.startDate.getMonth() == 0 && this.startDate.getDate() === 1) {
+          this.totalYears += 1;
+        }
+
+        this.generateDateInterval();
+    }
+
+    this.unitWidth = this.view.size[0] / this.unitNumber;
+    this.unitHeight = this.view.size[1] / this.unitNumber;
+    this.indexRange = [0, this.unitNumber - 1];
+  }
+
+  initChartMetrics() {
     const origin = this.view.origin;
     const width = this.view.size[0];
     const height = this.view.size[1];
@@ -683,23 +257,682 @@ export class AxisStore {
         window.innerHeight - origin[1],
         window.innerHeight - origin[1] + height
       ];
-      this.maxRange = [
-        window.innerHeight - origin[1],
-        window.innerHeight - origin[1] + height
-      ];
     } else {
       this.viewRange = [origin[0], origin[0] + width];
-      this.maxRange = [origin[0], origin[0] + width];
     }
 
+    this.maxRange = this.viewRange;
     this.scale = 1;
     this.offset = this.maxRange[0] - this.viewRange[0];
+  }
+
+  generateDateInterval() {
+    this.dateIntervalLengths = getIntervalLengths(this.startDate, this.endDate);
+    let level = Math.floor(Math.log2(this.totalYears));
+    let daysInAYear = this.dateIntervalLengths[this.dateIntervalLengths.length - 1];
+
+    while (level > 0) {
+      daysInAYear *= 2;
+      this.dateIntervalLengths.push(daysInAYear);
+      level--;
+    }
+  }
+
+  changeAxis() {
+    this.verticalLayout = !this.verticalLayout;
+    this.removeAll();
+    this.initChartMetrics();
+    this.updateInterval();
+    this.indexRange = [0, this.unitNumber - 1];
+    this.drawAuxilaryLines();
+
+    setTimeout(() => {
+      this.layoutLabels();
+    }, 1);
+  }
+
+  removeAll() {
+    this.bucketMap.forEach(bucket => {
+      if (bucket.display) {
+        bucket.display = false;
+        this.providers.labels.remove(bucket.label1);
+        if (bucket.label2) this.providers.labels.remove(bucket.label2);
+        this.providers.ticks.remove(bucket.tick);
+      }
+    })
+
+    this.providers.labels.clear();
+    this.providers.labels.clear();
+    this.bucketMap.clear();
+  }
+
+  layoutLabels() {
+    if (this.verticalLayout) {
+      this.layoutVertical();
+    } else {
+      this.layoutHorizon();
+    }
+  }
+
+  getLabelText(index: number) {
+    if (this.type === AxisDataType.LABEL) {
+      const text = this.labels[index];
+
+      if (text.length > this.maxLabelLengh) {
+        return text.substr(0, this.maxLabelLengh).concat("...")
+      }
+
+      return text;
+    } else if (this.type === AxisDataType.NUMBER) {
+      const number = this.numberRange[0] + index * this.numberGap;
+      if (number % 1 !== 0) return number.toFixed(this.decimalLength);
+      return number.toString();
+    } else if (this.type === AxisDataType.DATE) {
+      const startDate = this.startDate;
+      const currentDate = moment(startDate).add(index, 'days').toDate();
+      if (currentDate.getMonth() == 0 && currentDate.getDate() == 1) {
+        return `${currentDate.getFullYear()}`;
+      }
+      return `${monthNames[currentDate.getMonth()]} ${currentDate.getDate()}`;
+    }
+  }
+
+  setBucket(index: number, position: Vec2, alpha: number) {
+    const {
+      labelColor,
+      labelPadding,
+      labelSize,
+      tickLength,
+      tickWidth
+    } = this;
+
+    const inViewRange = this.verticalLayout ?
+      window.innerHeight - position[1] >= this.viewRange[0] && window.innerHeight - position[1] <= this.viewRange[1] :
+      position[0] >= this.viewRange[0] && position[0] <= this.viewRange[1];
+
+    if (inViewRange) {
+      if (this.bucketMap.has(index)) {
+        const bucket = this.bucketMap.get(index);
+
+        bucket.label1.origin = position;
+        bucket.label1.color = [
+          labelColor[0],
+          labelColor[1],
+          labelColor[2],
+          alpha
+        ];
+
+        bucket.label1.anchor = {
+          padding: labelPadding,
+          type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
+        }
+
+        if (bucket.label2 && !this.verticalLayout) {
+          bucket.label2.origin = position;
+          bucket.label2.color = [
+            labelColor[0],
+            labelColor[1],
+            labelColor[2],
+            alpha
+          ];
+
+          bucket.label2.anchor = {
+            padding: labelPadding + labelSize,
+            type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
+          }
+        }
+
+        bucket.tick.start = position;
+        bucket.tick.end = this.verticalLayout ?
+          [position[0] - tickLength, position[1]] :
+          [position[0], position[1] + tickLength];
+        bucket.tick.startColor = [
+          bucket.tick.startColor[0],
+          bucket.tick.startColor[1],
+          bucket.tick.startColor[2],
+          alpha
+        ];
+
+        bucket.tick.endColor = [
+          bucket.tick.endColor[0],
+          bucket.tick.endColor[1],
+          bucket.tick.endColor[2],
+          alpha
+        ];
+
+        if (!bucket.display) {
+          bucket.display = true;
+          this.providers.labels.add(bucket.label1);
+          if (bucket.label2) this.providers.labels.add(bucket.label2);
+          this.providers.ticks.add(bucket.tick);
+        }
+      } else {
+        const text = this.getLabelText(index);
+
+        const label1 = new LabelInstance({
+          anchor: {
+            padding: labelPadding,
+            type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
+          },
+          color: [labelColor[0], labelColor[1], labelColor[2], alpha],
+          fontSize: labelSize,
+          origin: position,
+          text,
+          onReady: label => {
+            if (label.size[1] > this.maxLabelHeight) {
+              this.maxLabelHeight = label.size[1];
+              if (this.maxLabelHeight > this.preSetMaxHeight && this.verticalLayout) {
+                this.updateInterval();
+                this.updateIndexRange();
+                this.layoutVertical();
+              }
+            }
+
+            if (label.size[0] > this.maxLabelWidth) {
+              this.maxLabelWidth = label.size[0];
+              if (this.maxLabelWidth > this.preSetMaxWidth && !this.verticalLayout) {
+                this.updateInterval();
+                this.updateIndexRange();
+                this.layoutHorizon();
+              }
+            }
+          }
+        });
+
+        const tick = new EdgeInstance({
+          start: position,
+          end: this.verticalLayout ?
+            [position[0] - tickLength, position[1]] :
+            [position[0], position[1] + tickLength],
+          thickness: [tickWidth, tickWidth],
+          startColor: [1, 1, 1, alpha],
+          endColor: [1, 1, 1, alpha]
+        });
+
+        const day = moment(this.startDate).add(index, 'days').toDate();
+
+        if (
+          this.type === AxisDataType.DATE &&
+          !this.verticalLayout &&
+          (day.getMonth() !== 0 ||
+            day.getDate() !== 1)
+        ) {
+          const label2 = new LabelInstance({
+            anchor: {
+              padding: labelPadding + labelSize,
+              type: AnchorType.TopMiddle
+            },
+            color: [labelColor[0], labelColor[1], labelColor[2], alpha],
+            fontSize: labelSize,
+            origin: position,
+            text: `${day.getFullYear()}`
+          });
+
+          const bucket: Bucket = { label1, label2, tick, display: true };
+          this.bucketMap.set(index, bucket);
+          this.providers.labels.add(bucket.label1);
+          this.providers.labels.add(bucket.label2);
+          this.providers.ticks.add(bucket.tick);
+        } else {
+          const bucket: Bucket = { label1, tick, display: true };
+          this.bucketMap.set(index, bucket);
+          this.providers.labels.add(bucket.label1);
+          this.providers.ticks.add(bucket.tick);
+        }
+      }
+    } else {
+      if (this.bucketMap.has(index)) {
+        const bucket = this.bucketMap.get(index);
+
+        if (bucket.display) {
+          bucket.display = false;
+          this.providers.labels.remove(bucket.label1);
+          if (bucket.label2) this.providers.labels.remove(bucket.label2);
+          this.providers.ticks.remove(bucket.tick);
+        }
+      }
+    }
+  }
+
+  layoutHorizon() {
+    const {
+      interval,
+      lowerInterval,
+      maxLabelWidth,
+      preSetMaxWidth,
+      scale,
+      unitWidth,
+    } = this;
+
+    const curScale = 0.5 * Math.pow(2, scale)
+    const maxBucketWidth = maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
+
+    const lowerScale = maxBucketWidth / (unitWidth * interval);
+    const higherScale = lowerInterval === 0 ?
+      maxBucketWidth / (unitWidth * interval * 0.5) :
+      maxBucketWidth / (unitWidth * lowerInterval);
+    const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
+
+    if (this.type === AxisDataType.NUMBER || this.type === AxisDataType.LABEL) {
+      this.layoutLabelOrNumber(alphaScale, lowerScale, higherScale);
+    } else if (this.type === AxisDataType.DATE) {
+      this.layoutDateLabels(alphaScale, lowerScale, higherScale);
+    }
+  }
+
+  setView(view: { origin: Vec2, size: Vec2 }) {
+    this.view = view;
+    this.unitWidth = this.view.size[0] / this.unitNumber;
+    this.unitHeight = this.view.size[1] / this.unitNumber;
+    this.interval = 1;
+    this.lowerInterval = 0;
+    this.higherInterval = 2;
+    this.preInterval = 1;
+    this.scaleLevel = 0;
+    this.preScaleLevel = 0;
+    this.indexRange = [0, this.unitNumber - 1];
+    this.removeAll();
+    this.initChartMetrics();
+    this.updateInterval();
+    this.drawAuxilaryLines();
+
+    setTimeout(() => {
+      this.layoutLabels();
+    }, 1);
+
+  }
+
+  setDateRange(startDate: string | Date, endDate: string | Date) {
+    // Update start and end date
+    this.startDate = typeof startDate === "string" ? new Date(startDate) : startDate;
+    this.endDate = typeof endDate === "string" ? new Date(endDate) : endDate;
+    this.totalYears = this.endDate.getFullYear() - this.startDate.getFullYear();
+
+    if (this.startDate.getMonth() == 0 && this.startDate.getDate() === 1) {
+      this.totalYears += 1;
+    }
+
+    // Update unit number and related
+    this.unitNumber = moment(this.endDate).diff(moment(this.startDate), 'days') + 1;
+    this.indexRange = [0, this.unitNumber - 1];
+    this.unitWidth = this.view.size[0] / this.unitNumber;
+    this.unitHeight = this.view.size[1] / this.unitNumber;
+
+    this.maxLabelWidth = 0;
+    this.maxLabelHeight = 0;
+    this.scaleLevel = 0;
+    this.preScaleLevel = 0;
+
+    this.removeAll();
+    this.initChartMetrics();
+    this.updateInterval();
+
+    setTimeout(() => {
+      this.layoutLabels();
+    }, 1);
+  }
+
+  setNumberRange(start: number, end: number) {
+    this.numberRange = [start, end];
+    this.unitNumber = Math.floor((this.numberRange[1] - this.numberRange[0]) / this.numberGap) + 1;
+    this.indexRange = [0, this.unitNumber - 1];
+    this.unitWidth = this.view.size[0] / this.unitNumber;
+    this.unitHeight = this.view.size[1] / this.unitNumber;
+    this.maxLabelWidth = 0;
+    this.maxLabelHeight = 0;
+
+    this.removeAll();
+    this.updateInterval();
+
+    setTimeout(() => {
+      this.layoutLabels();
+    }, 1);
+  }
+
+  layoutVertical() {
+    const {
+      interval,
+      lowerInterval,
+      maxLabelHeight,
+      preSetMaxHeight,
+      scale,
+      unitHeight
+    } = this;
+
+    const curScale = 0.5 * Math.pow(2, scale)
+    const maxBucketHeight = maxLabelHeight === 0 ? preSetMaxHeight : maxLabelHeight;
+    const lowerScale = maxBucketHeight / (unitHeight * interval);
+    const higherScale = lowerInterval === 0 ?
+      maxBucketHeight / (unitHeight * interval * 0.5) :
+      maxBucketHeight / (unitHeight * lowerInterval);
+    const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
+
+    if (this.type === AxisDataType.NUMBER || this.type === AxisDataType.LABEL) {
+      this.layoutLabelOrNumber(alphaScale, lowerScale, higherScale);
+    } else if (this.type === AxisDataType.DATE) {
+      this.layoutDateLabels(alphaScale, lowerScale, higherScale);
+    }
+  }
+
+  layoutLabelOrNumber(alphaScale: number, lowerScale: number, higherScale: number) {
+    const {
+      higherInterval,
+      unitWidth,
+      unitHeight,
+      interval,
+      scale,
+      view
+    } = this;
+
+    const curScale = 0.5 * Math.pow(2, scale)
+    const origin = view.origin;
+    const start = Math.ceil(this.indexRange[0] / interval) * interval;
+    const end = Math.floor(this.indexRange[1] / interval) * interval;
+
+    if (this.verticalLayout) {
+      const unitH = unitHeight * curScale;
+
+      for (let i = start; i <= end; i += interval) {
+        const y = origin[1] - (i + 0.5) * unitH - this.offset;
+        let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+        if (i % higherInterval === 0) alpha = 1;
+        this.setBucket(i, [origin[0], y], alpha);
+      }
+    } else {
+      const unitW = unitWidth * curScale;
+      for (let i = start; i <= end; i += interval) {
+        const x = origin[0] + (i + 0.5) * unitW + this.offset;
+        let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+        if (i % higherInterval === 0) alpha = 1;
+        this.setBucket(i, [x, origin[1]], alpha);
+      }
+    }
+  }
+
+  layoutDateLabels(alphaScale: number, lowerScale: number, higherScale: number) {
+    const {
+      scale,
+      unitWidth,
+      unitHeight,
+      view,
+    } = this;
+
+    const curScale = 0.5 * Math.pow(2, scale)
+    const unitH = unitHeight * curScale;
+    const unitW = unitWidth * curScale;
+    const origin = view.origin;
+
+    if (this.scaleLevel === 0) {
+      for (let index = this.indexRange[0]; index <= this.indexRange[1]; index++) {
+        const day = moment(this.startDate).add(index, 'days').toDate();
+        const level = getDayLevel(this.startDate, day, this.totalYears);
+
+        if (this.verticalLayout) {
+          const y = origin[1] - (index + 0.5) * unitH - this.offset;
+          let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+          if (level >= this.scaleLevel + 1) alpha = 1;
+          this.setBucket(index, [origin[0], y], alpha);
+        } else {
+          const x = origin[0] + (index + 0.5) * unitW + this.offset;
+          let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+          if (level >= this.scaleLevel + 1) alpha = 1;
+          this.setBucket(index, [x, origin[1]], alpha);
+        }
+      }
+    } else {
+      const sd = moment(this.startDate).add(this.indexRange[0], 'days').toDate();
+      const ed = moment(this.startDate).add(this.indexRange[1], 'days').toDate();
+      const indices = getIndices(this.startDate, sd, ed, this.totalYears, this.scaleLevel);
+
+      for (let i = 0; i < indices.length; i++) {
+        const index = indices[i];
+        const day = moment(this.startDate).add(index, 'days').toDate();
+        const level = getDayLevel(this.startDate, day, this.totalYears);
+
+        if (this.verticalLayout) {
+          const y = origin[1] - (index + 0.5) * unitH - this.offset;
+          let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+          if (level >= this.scaleLevel + 1) alpha = 1;
+          this.setBucket(index, [origin[0], y], alpha);
+        } else {
+          const x = origin[0] + (index + 0.5) * unitW + this.offset;
+          let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+          if (level >= this.scaleLevel + 1) alpha = 1;
+          this.setBucket(index, [x, origin[1]], alpha);
+        }
+      }
+    }
+  }
+
+  removeBuckets(start: number, end: number, interval: number) {
+    if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
+      this.removeLabelOrNumberBuckets(start, end, interval);
+    } else {
+      this.removeDateBuckets(start, end, 0);
+    }
+  }
+
+  removeLabelOrNumberBuckets(start: number, end: number, interval: number) {
+    const s = Math.ceil(start / interval) * interval;
+    const e = Math.floor(end / interval) * interval;
+
+    for (let i = s; i <= e; i += interval) {
+      if (this.bucketMap.has(i)) {
+        const bucket = this.bucketMap.get(i);
+
+        if (bucket.display) {
+          bucket.display = false;
+          this.providers.labels.remove(bucket.label1);
+          if (bucket.label2) this.providers.labels.remove(bucket.label2);
+          this.providers.ticks.remove(bucket.tick);
+        }
+      }
+    }
+  }
+
+  removeDateBuckets(start: number, end: number, lowerLevel: number, higherLevel?: number) {
+    if (lowerLevel === 0) {
+      for (let index = start; index <= end; index++) {
+        if (this.bucketMap.has(index)) {
+          const bucket = this.bucketMap.get(index);
+          const day = moment(this.startDate).add(index, 'days').toDate();
+          const level = getDayLevel(this.startDate, day, this.totalYears);
+          const atLevel0 = level == 0;
+          const higherLevelBiggerThanZero = higherLevel && higherLevel > 0;
+          const higherLevelNotExist = !higherLevel && higherLevel != 0;
+          const toRemove = atLevel0 || higherLevelBiggerThanZero || higherLevelNotExist;
+
+          if (bucket.display && toRemove) {
+            bucket.display = false;
+            this.providers.labels.remove(bucket.label1);
+            if (bucket.label2) this.providers.labels.remove(bucket.label2);
+            this.providers.ticks.remove(bucket.tick);
+          }
+        }
+      }
+    } else {
+      const s = moment(this.startDate).add(start, 'days').toDate();
+      const e = moment(this.startDate).add(end, 'days').toDate();
+      const indices = getIndices(this.startDate, s, e, this.totalYears, lowerLevel, higherLevel);
+
+      for (let i = 0; i < indices.length; i++) {
+        const index = indices[i];
+
+        if (this.bucketMap.has(index)) {
+          const bucket = this.bucketMap.get(index);
+
+          if (bucket.display) {
+            bucket.display = false;
+            this.providers.labels.remove(bucket.label1);
+            if (bucket.label2) this.providers.labels.remove(bucket.label2);
+            this.providers.ticks.remove(bucket.tick);
+          }
+        }
+      }
+    }
+  }
+
+  updateInterval() {
+    const {
+      scale,
+      unitWidth,
+      unitHeight,
+      maxLabelHeight,
+      maxLabelWidth,
+      preSetMaxWidth,
+      preSetMaxHeight
+    } = this;
+
+    this.preInterval = this.interval;
+    this.preScaleLevel = this.scaleLevel;
+    const curScale = 0.5 * Math.pow(2, scale);
+
+    if (this.verticalLayout) {
+      const unitH = unitHeight * curScale;
+      const maxHeight = this.maxLabelHeight === 0 ? preSetMaxHeight : maxLabelHeight;
+
+      if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
+        if (this.interval * unitH <= maxHeight) {
+          while (this.interval * unitH <= maxHeight) {
+            this.interval *= 2;
+          }
+        } else {
+          while (this.lowerInterval * unitH > maxHeight) {
+            this.interval /= 2;
+            this.lowerInterval = this.interval === 1 ? 0 : this.interval / 2;
+          }
+
+          if (this.interval * unitH < maxHeight) {
+            this.interval *= 2;
+          }
+        }
+
+      } else if (this.type === AxisDataType.DATE) {
+        this.interval = this.dateIntervalLengths[this.scaleLevel];
+
+        if (this.interval * unitH <= maxHeight) {
+          while (this.interval * unitH <= maxHeight) {
+            this.scaleLevel++;
+            this.interval = this.dateIntervalLengths[this.scaleLevel];
+          }
+        } else {
+          while (this.lowerInterval * unitH > maxHeight) {
+            this.scaleLevel--;
+            this.interval = this.dateIntervalLengths[this.scaleLevel];
+            if (this.scaleLevel === 0) this.lowerInterval = 0;
+            else this.lowerInterval = this.dateIntervalLengths[this.scaleLevel - 1];
+          }
+
+          if (this.interval * unitH <= maxHeight) {
+            this.scaleLevel++;
+            this.interval = this.dateIntervalLengths[this.scaleLevel];
+            if (this.scaleLevel === 0) this.lowerInterval = 0;
+            else this.lowerInterval = this.dateIntervalLengths[this.scaleLevel - 1];
+          }
+        }
+      }
+    } else {
+      const unitW = unitWidth * curScale;
+      const maxWidth = maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
+
+      if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
+        if (this.interval * unitW <= maxWidth) {
+          while (this.interval * unitW <= maxWidth) {
+            this.interval *= 2;
+          }
+        } else {
+          while (this.lowerInterval * unitW > maxWidth) {
+            this.interval /= 2;
+            this.lowerInterval = this.interval === 1 ? 0 : this.interval / 2;
+          }
+
+          if (this.interval * unitW < maxWidth) {
+            this.interval *= 2;
+          }
+        }
+
+
+      } else if (this.type === AxisDataType.DATE) {
+        this.interval = this.dateIntervalLengths[this.scaleLevel];
+
+        if (this.interval * unitW <= maxWidth) {
+          while (this.interval * unitW <= maxWidth) {
+            this.scaleLevel++;
+            this.interval = this.dateIntervalLengths[this.scaleLevel];
+          }
+        } else {
+          while (this.lowerInterval * unitW > maxWidth) {
+            this.scaleLevel--;
+            this.interval = this.dateIntervalLengths[this.scaleLevel];
+            if (this.scaleLevel === 0) this.lowerInterval = 0;
+            else this.lowerInterval = this.dateIntervalLengths[this.scaleLevel - 1];
+          }
+
+          if (this.interval * unitW <= maxWidth) {
+            this.scaleLevel++;
+            this.interval = this.dateIntervalLengths[this.scaleLevel];
+            if (this.scaleLevel === 0) this.lowerInterval = 0;
+            else this.lowerInterval = this.dateIntervalLengths[this.scaleLevel - 1];
+          }
+
+        }
+      }
+    }
+
+    if (this.interval != 1) this.lowerInterval = this.interval / 2;
+    this.higherInterval = this.interval * 2;
+  }
+
+  updateIndexRange() {
+    const {
+      maxRange,
+      scale,
+      unitWidth,
+      unitHeight,
+      viewRange
+    } = this;
+
+    const curScale = 0.5 * Math.pow(2, scale)
+    const unit = this.verticalLayout ? unitHeight * curScale : unitWidth * curScale;
+
+    const start = Math.floor((viewRange[0] - maxRange[0]) / unit);
+    const end = Math.ceil((viewRange[1] - maxRange[0]) / unit);
+    const oldStart = this.indexRange[0];
+    const oldEnd = this.indexRange[1];
+
+    if (oldEnd < start || oldStart > end) {
+      // remove [oldStart, oldEnd]
+      this.removeBuckets(oldStart, oldEnd, this.preInterval);
+    } else {
+      if (oldEnd >= start && oldStart < start) {
+        // remove [oldStart, start]
+        this.removeBuckets(oldStart, start, this.preInterval);
+      }
+
+      if (oldStart <= end && oldEnd > end) {
+        // remove [end, oldEnd]
+        this.removeBuckets(end, oldEnd, this.preInterval);
+      }
+    }
+
+    // remove buckets at lower level
+    if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
+      if (this.preInterval < this.interval) {
+        this.removeLabelOrNumberBuckets(start, end, this.preInterval);
+      }
+    } else if (this.type === AxisDataType.DATE) {
+      this.removeDateBuckets(start, end, this.scaleLevel - 1, this.scaleLevel - 1);
+    }
+
+    // update index range
+    this.indexRange = [start, end];
   }
 
   // Only update viewRange , then update offset and scale
   updateScale(mouse: Vec2, scale: Vec3) {
     const newScale = this.scale + (this.verticalLayout ? scale[1] : scale[0]);
-    this.scale = Math.max(newScale, 1);
+    this.scale = Math.min(Math.max(newScale, 1), Math.log2(2 * this.unitNumber));
+    const curScale = 0.5 * Math.pow(2, this.scale);
     const width = this.view.size[0];
     const height = this.view.size[1];
 
@@ -709,7 +942,7 @@ export class AxisStore {
       const vd = this.viewRange[0];
       const vu = this.viewRange[1];
       const pointY = Math.min(Math.max(vd, window.innerHeight - mouse[1]), vu);
-      const newHeight = height * this.scale;
+      const newHeight = height * curScale;
       const upHeight = (pointY - downY) * newHeight / (upY - downY);
       const newDownY = pointY - upHeight;
       const newUpY = newDownY + newHeight;
@@ -720,7 +953,7 @@ export class AxisStore {
       const vl = this.viewRange[0];
       const vr = this.viewRange[1];
       const pointX = Math.min(Math.max(vl, mouse[0]), vr);
-      const newWidth = width * this.scale;
+      const newWidth = width * curScale;
       const leftWidth = (pointX - leftX) * newWidth / (rightX - leftX);
       let newLeftX = pointX - leftWidth;
       let newRightX = newLeftX + newWidth;
@@ -742,21 +975,23 @@ export class AxisStore {
     }
   }
 
-  updateMaxRange(left: number, right: number, width: number) {
-    if (left >= this.viewRange[0] && right <= this.viewRange[1]) {
-      left = this.viewRange[0];
-      right = this.viewRange[1];
-    } else if (left >= this.viewRange[0]) {
-      left = this.viewRange[0];
-      right = left + width;
-    } else if (right <= this.viewRange[1]) {
-      right = this.viewRange[1];
-      left = right - width;
+  updateMaxRange(low: number, high: number, length: number) {
+    if (low >= this.viewRange[0] && high <= this.viewRange[1]) {
+      low = this.viewRange[0];
+      high = this.viewRange[1];
+    } else if (low >= this.viewRange[0]) {
+      low = this.viewRange[0];
+      high = low + length;
+    } else if (high <= this.viewRange[1]) {
+      high = this.viewRange[1];
+      low = high - length;
     }
 
-    this.maxRange = [left, right];
+    this.maxRange = [low, high];
     this.offset = this.maxRange[0] - this.viewRange[0];
 
+    this.updateInterval();
+    this.updateIndexRange();
     this.layoutLabels();
   }
 }

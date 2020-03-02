@@ -21,7 +21,8 @@ export class Axis {
       endDate: props.endDate,
       maxLabelLength: props.maxLabelLength,
       numberRange: props.numberRange,
-      numberGap: props.numberGap
+      numberGap: props.numberGap,
+      verticalLayout: props.verticalLayout
     });
   }
 
