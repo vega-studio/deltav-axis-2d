@@ -10,15 +10,37 @@ let axis3: Axis;
 
 const parameters = {
   toggleLayout: () => {
-    axis1.store.changeAxis();
-    axis2.store.changeAxis();
-    axis3.store.changeAxis();
+    if (axis1) axis1.store.changeAxis();
+    if (axis2) axis2.store.changeAxis();
+    if (axis3) axis3.store.changeAxis();
+  },
+  resize: () => {
+    if (axis1) axis1.store.setView({
+      origin: [200 + 50 * Math.random(), 550 + 50 * Math.random()],
+      size: [700 + 300 * Math.random(), 600 + 200 * Math.random()]
+    });
+
+    if (axis2) axis2.store.setView({
+      origin: [400 + 50 * Math.random(), 700 + 50 * Math.random()],
+      size: [800 + 300 * Math.random(), 600 + 200 * Math.random()]
+    });
+
+    if (axis3) axis3.store.setView({
+      origin: [600 + 50 * Math.random(), 800 + 50 * Math.random()],
+      size: [900 + 300 * Math.random(), 600 + 200 * Math.random()]
+    });
+  },
+  setDateRange: () => {
+    if (axis2) axis2.store.setNumberRange(-20, 120);
+    if (axis3) axis3.store.setDateRange(new Date(2019, 0, 8), new Date(2019, 2, 1));
   }
 }
 
 function buildConsole() {
   const ui = new dat.GUI();
   ui.add(parameters, 'toggleLayout');
+  ui.add(parameters, 'resize');
+  ui.add(parameters, "setDateRange");
 }
 
 async function makeSurface(container: HTMLElement) {
@@ -27,8 +49,12 @@ async function makeSurface(container: HTMLElement) {
   const surface = new BasicSurface({
     container,
     providers: {
-      ticks: new InstanceProvider<EdgeInstance>(),
-      labels: new InstanceProvider<LabelInstance>(),
+      ticks1: new InstanceProvider<EdgeInstance>(),
+      ticks2: new InstanceProvider<EdgeInstance>(),
+      ticks3: new InstanceProvider<EdgeInstance>(),
+      labels1: new InstanceProvider<LabelInstance>(),
+      labels2: new InstanceProvider<LabelInstance>(),
+      labels3: new InstanceProvider<LabelInstance>()
     },
     cameras: {
       main: new Camera2D(),
@@ -51,15 +77,15 @@ async function makeSurface(container: HTMLElement) {
       controller: new BasicCamera2DController({
         camera: cameras.main,
         panFilter: (offset: [number, number, number]) => {
-          axis1.shift(offset);
-          axis2.shift(offset);
-          axis3.shift(offset);
+          if (axis1) axis1.shift(offset);
+          if (axis2) axis2.shift(offset);
+          if (axis3) axis3.shift(offset);
           return [0, 0, 0];
         },
         scaleFilter: (scale: [number, number, number]) => {
-          axis1.zoom(mouse, scale);
-          axis2.zoom(mouse, scale)
-          axis3.zoom(mouse, scale)
+          if (axis1) axis1.zoom(mouse, scale);
+          if (axis2) axis2.zoom(mouse, scale)
+          if (axis3) axis3.zoom(mouse, scale)
           return [0, 0, 0];
         },
       }),
@@ -79,19 +105,37 @@ async function makeSurface(container: HTMLElement) {
           })
         },
         layers: {
-          ticks: createLayer(EdgeLayer, {
+          ticks1: createLayer(EdgeLayer, {
             animate: {
               thickness: AutoEasingMethod.easeInOutCubic(300)
             },
-            data: providers.ticks,
+            data: providers.ticks1,
             type: EdgeType.LINE,
           }),
-          labels: createLayer(LabelLayer, {
+          labels1: createLayer(LabelLayer, {
+            data: providers.labels1,
+            resourceKey: resources.font.key
+          }),
+          ticks2: createLayer(EdgeLayer, {
             animate: {
-              // color: AutoEasingMethod.easeInOutCubic(300),
-              //origin: AutoEasingMethod.easeInOutCubic(300)
+              thickness: AutoEasingMethod.easeInOutCubic(300)
             },
-            data: providers.labels,
+            data: providers.ticks2,
+            type: EdgeType.LINE,
+          }),
+          labels2: createLayer(LabelLayer, {
+            data: providers.labels2,
+            resourceKey: resources.font.key
+          }),
+          ticks3: createLayer(EdgeLayer, {
+            animate: {
+              thickness: AutoEasingMethod.easeInOutCubic(300)
+            },
+            data: providers.ticks3,
+            type: EdgeType.LINE,
+          }),
+          labels3: createLayer(LabelLayer, {
+            data: providers.labels3,
             resourceKey: resources.font.key
           })
         }
@@ -129,7 +173,10 @@ async function start() {
       size: [1200, 500],
     },
     labels: names,
-    providers: surface.providers,
+    providers: {
+      ticks: surface.providers.ticks1,
+      labels: surface.providers.labels1
+    },
     labelColor: [1, 0.5, 0, 1],
     labelSize: 22,
     labelPadding: 15,
@@ -144,16 +191,18 @@ async function start() {
       origin: [420, 700],
       size: [1200, 500],
     },
-    labels: names,
-    providers: surface.providers,
+    providers: {
+      ticks: surface.providers.ticks2,
+      labels: surface.providers.labels2
+    },
     labelColor: [0, 0.5, 0.8, 1],
     labelSize: 20,
     labelPadding: 15,
     tickWidth: 2,
     tickLength: 10,
     type: AxisDataType.NUMBER,
-    numberRange: [-2725120736, -2372919733], //[1, 10000000000],
-    numberGap: 1,
+    numberRange: [-2725120736, -2372919733],
+    numberGap: 0.378,
     verticalLayout: false
   });
 
@@ -163,7 +212,10 @@ async function start() {
       size: [1200, 500],
     },
     labels: names,
-    providers: surface.providers,
+    providers: {
+      ticks: surface.providers.ticks3,
+      labels: surface.providers.labels3
+    },
     labelColor: [1, 0, 0.5, 1],
     labelSize: 18,
     labelPadding: 15,
@@ -175,7 +227,7 @@ async function start() {
     verticalLayout: false
   });
 
-  console.log(surface.providers.labels === axis1.store.providers.labels);
+  console.log(surface.providers.labels1 === axis1.store.providers.labels);
 }
 
 start();

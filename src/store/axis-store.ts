@@ -26,19 +26,17 @@ export interface IAxisStoreOptions {
   endDate?: Date | string
   numberRange?: Vec2;
   numberGap?: number;
+  maxLabelLength?: number;
   verticalLayout?: boolean;
 }
 
 export class AxisStore {
   // Layout mode
-  verticalLayout: boolean = true;
+  verticalLayout: boolean = false;
+  axisChanged: boolean = false;
 
   // data type
   type: AxisDataType;
-
-  // Shape Instances Holders
-  labelInstances: LabelInstance[] = [];
-  tickLineInstances: EdgeInstance[] = [];
 
   // Axis Metrics
   view: {
@@ -56,15 +54,18 @@ export class AxisStore {
 
   maxLabelWidth: number = 0;
   maxLabelHeight: number = 0;
-  preSetMaxWidth: number = 0;
-  preSetMaxHeight: number = 0;
-
-  maxLabelLengh: number = 15;
-
+  maxLabelLengh: number = 10;
+  decimalLength: number = 3;
   labels: string[];
+  dates: dateLevel[];
+
   // Range
   maxRange: Vec2;
   viewRange: Vec2;
+  preSetMaxWidth: number = 0;
+  preSetMaxHeight: number = 0;
+
+  // Range
   numberRange: Vec2 = [0, 100];
   numberGap: number = 1;
 
@@ -104,6 +105,24 @@ export class AxisStore {
     this.labelSize = options.labelSize || this.labelSize;
     this.labelColor = options.labelColor || this.labelColor;
     this.labelPadding = options.labelPadding || this.labelPadding;
+    this.maxLabelLengh = options.maxLabelLength || this.maxLabelLengh;
+    this.type = options.type;
+
+    if (this.type === AxisDataType.DATE) {
+      if (options.startDate) {
+        this.startDate = typeof options.startDate === "string" ?
+          new Date(options.startDate) : options.startDate;
+      }
+
+      if (options.endDate) {
+        this.endDate = typeof options.endDate === "string" ?
+          new Date(options.endDate) : options.endDate;
+      }
+    } else if (this.type = AxisDataType.NUMBER) {
+      this.numberRange = options.numberRange || this.numberRange;
+      this.numberGap = options.numberGap || this.numberGap;
+    }
+
     this.verticalLayout = options.verticalLayout === undefined ? this.verticalLayout : options.verticalLayout;
     Object.assign(this.providers, options.providers);
     this.initType(options);
@@ -297,9 +316,17 @@ export class AxisStore {
 
   getLabelText(index: number) {
     if (this.type === AxisDataType.LABEL) {
-      return this.labels[index];
+      const text = this.labels[index];
+
+      if (text.length > this.maxLabelLengh) {
+        return text.substr(0, this.maxLabelLengh).concat("...")
+      }
+
+      return text;
     } else if (this.type === AxisDataType.NUMBER) {
-      return `${this.numberRange[0] + index * this.numberGap}`;
+      const number = this.numberRange[0] + index * this.numberGap;
+      if (number % 1 !== 0) return number.toFixed(this.decimalLength);
+      return number.toString();
     } else if (this.type === AxisDataType.DATE) {
       const startDate = this.startDate;
       const currentDate = moment(startDate).add(index, 'days').toDate();
@@ -420,7 +447,8 @@ export class AxisStore {
           thickness: [tickWidth, tickWidth],
           startColor: [1, 1, 1, alpha],
           endColor: [1, 1, 1, alpha]
-        })
+        });
+
         const day = moment(this.startDate).add(index, 'days').toDate();
 
         if (
@@ -490,6 +518,75 @@ export class AxisStore {
     } else if (this.type === AxisDataType.DATE) {
       this.layoutDateLabels(alphaScale, lowerScale, higherScale);
     }
+  }
+
+  setView(view: { origin: Vec2, size: Vec2 }) {
+    this.view = view;
+    this.unitWidth = this.view.size[0] / this.unitNumber;
+    this.unitHeight = this.view.size[1] / this.unitNumber;
+    this.interval = 1;
+    this.lowerInterval = 0;
+    this.higherInterval = 2;
+    this.preInterval = 1;
+    this.scaleLevel = 0;
+    this.preScaleLevel = 0;
+    this.indexRange = [0, this.unitNumber - 1];
+    this.removeAll();
+    this.initChartMetrics();
+    this.updateInterval();
+    this.drawAuxilaryLines();
+
+    setTimeout(() => {
+      this.layoutLabels();
+    }, 1);
+
+  }
+
+  setDateRange(startDate: string | Date, endDate: string | Date) {
+    // Update start and end date
+    this.startDate = typeof startDate === "string" ? new Date(startDate) : startDate;
+    this.endDate = typeof endDate === "string" ? new Date(endDate) : endDate;
+    this.totalYears = this.endDate.getFullYear() - this.startDate.getFullYear();
+
+    if (this.startDate.getMonth() == 0 && this.startDate.getDate() === 1) {
+      this.totalYears += 1;
+    }
+
+    // Update unit number and related
+    this.unitNumber = moment(this.endDate).diff(moment(this.startDate), 'days') + 1;
+    this.indexRange = [0, this.unitNumber - 1];
+    this.unitWidth = this.view.size[0] / this.unitNumber;
+    this.unitHeight = this.view.size[1] / this.unitNumber;
+
+    this.maxLabelWidth = 0;
+    this.maxLabelHeight = 0;
+    this.scaleLevel = 0;
+    this.preScaleLevel = 0;
+
+    this.removeAll();
+    this.initChartMetrics();
+    this.updateInterval();
+
+    setTimeout(() => {
+      this.layoutLabels();
+    }, 1);
+  }
+
+  setNumberRange(start: number, end: number) {
+    this.numberRange = [start, end];
+    this.unitNumber = Math.floor((this.numberRange[1] - this.numberRange[0]) / this.numberGap) + 1;
+    this.indexRange = [0, this.unitNumber - 1];
+    this.unitWidth = this.view.size[0] / this.unitNumber;
+    this.unitHeight = this.view.size[1] / this.unitNumber;
+    this.maxLabelWidth = 0;
+    this.maxLabelHeight = 0;
+
+    this.removeAll();
+    this.updateInterval();
+
+    setTimeout(() => {
+      this.layoutLabels();
+    }, 1);
   }
 
   layoutVertical() {
@@ -640,7 +737,10 @@ export class AxisStore {
           const bucket = this.bucketMap.get(index);
           const day = moment(this.startDate).add(index, 'days').toDate();
           const level = getDayLevel(this.startDate, day, this.totalYears);
-          const toRemove = ((higherLevel && higherLevel > 0) || !higherLevel) || level === 0;
+          const atLevel0 = level == 0;
+          const higherLevelBiggerThanZero = higherLevel && higherLevel > 0;
+          const higherLevelNotExist = !higherLevel && higherLevel != 0;
+          const toRemove = atLevel0 || higherLevelBiggerThanZero || higherLevelNotExist;
 
           if (bucket.display && toRemove) {
             bucket.display = false;
@@ -701,7 +801,12 @@ export class AxisStore {
             this.interval /= 2;
             this.lowerInterval = this.interval === 1 ? 0 : this.interval / 2;
           }
+
+          if (this.interval * unitH < maxHeight) {
+            this.interval *= 2;
+          }
         }
+
       } else if (this.type === AxisDataType.DATE) {
         this.interval = this.dateIntervalLengths[this.scaleLevel];
 
@@ -740,7 +845,13 @@ export class AxisStore {
             this.interval /= 2;
             this.lowerInterval = this.interval === 1 ? 0 : this.interval / 2;
           }
+
+          if (this.interval * unitW < maxWidth) {
+            this.interval *= 2;
+          }
         }
+
+
       } else if (this.type === AxisDataType.DATE) {
         this.interval = this.dateIntervalLengths[this.scaleLevel];
 
