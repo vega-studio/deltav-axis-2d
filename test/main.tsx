@@ -1,5 +1,4 @@
 import { Axis } from "src";
-import { travelDates, getLength, getIntervalLengths, dateLevel } from "src/util/dateUtil";
 import { AxisDataType } from "src/types";
 import { AutoEasingMethod, createLayer, createView, View2D, EdgeLayer, LabelLayer, ClearFlags, SimpleEventHandler, IMouseInteraction, BasicSurface, Camera2D, BasicCamera2DController, EdgeType, Vec2, InstanceProvider, EdgeInstance, LabelInstance, createFont, FontMapGlyphType } from "deltav";
 import * as dat from "dat.gui";
@@ -32,7 +31,7 @@ const parameters = {
   },
   setDateRange: () => {
     if (axis2) axis2.store.setNumberRange(-20, 120);
-    if (axis3) axis3.store.setDateRange(new Date(2019, 0, 8), new Date(2019, 2, 1));
+    if (axis3) axis3.store.setDateRange(new Date(2019, 0, 8), new Date(2020, 7, 10));
   }
 }
 
@@ -146,6 +145,14 @@ async function makeSurface(container: HTMLElement) {
   await surface.ready;
   return surface;
 }
+
+function resizeAll() {
+  if (axis1) axis1.store.resize();
+  if (axis2) axis2.store.resize();
+  if (axis3) axis3.store.resize();
+}
+
+window.onresize = resizeAll;
 
 async function start() {
   const container = document.getElementById('main');

@@ -35,6 +35,8 @@ export class AxisStore {
   verticalLayout: boolean = false;
   axisChanged: boolean = false;
 
+  resizeWithWindow: boolean = true;
+
   // data type
   type: AxisDataType;
 
@@ -77,6 +79,9 @@ export class AxisStore {
   unitHeight: number;
   offset: number = 0;
   scale: number = 1;
+
+  windowWidth: number = 0;
+  windowHeight: number = 0;
 
   // Interval info
   interval: number = 1;
@@ -196,6 +201,9 @@ export class AxisStore {
       this.layoutHorizon();
     }
 
+    this.windowWidth = window.innerWidth;
+    this.windowHeight = window.innerHeight;
+
     this.drawAuxilaryLines();
   }
 
@@ -306,6 +314,32 @@ export class AxisStore {
     this.bucketMap.clear();
   }
 
+  resize() {
+    console.warn("Resize", this.type);
+    if (this.resizeWithWindow) {
+      const newWidth = window.innerWidth;
+      const newHeight = window.innerHeight;
+
+      const newOrigin: Vec2 = [
+        this.view.origin[0] * newWidth / this.windowWidth,
+        this.view.origin[1] * newHeight / this.windowHeight
+      ];
+
+      const newSize: Vec2 = [
+        this.view.size[0] * newWidth / this.windowWidth,
+        this.view.size[1] * newHeight / this.windowHeight
+      ];
+
+      this.windowWidth = newWidth;
+      this.windowHeight = newHeight;
+
+      this.setView({
+        origin: newOrigin,
+        size: newSize
+      })
+    }
+  }
+
   layoutLabels() {
     if (this.verticalLayout) {
       this.layoutVertical();
@@ -346,6 +380,9 @@ export class AxisStore {
       tickWidth
     } = this;
 
+    const labelAlpha = alpha > 0.4 ? (alpha - 0.4) * 5 / 3 : 0;
+    const tickAlpha = alpha;
+
     const inViewRange = this.verticalLayout ?
       window.innerHeight - position[1] >= this.viewRange[0] && window.innerHeight - position[1] <= this.viewRange[1] :
       position[0] >= this.viewRange[0] && position[0] <= this.viewRange[1];
@@ -359,7 +396,7 @@ export class AxisStore {
           labelColor[0],
           labelColor[1],
           labelColor[2],
-          alpha
+          labelAlpha
         ];
 
         bucket.label1.anchor = {
@@ -373,7 +410,7 @@ export class AxisStore {
             labelColor[0],
             labelColor[1],
             labelColor[2],
-            alpha
+            labelAlpha
           ];
 
           bucket.label2.anchor = {
@@ -390,14 +427,14 @@ export class AxisStore {
           bucket.tick.startColor[0],
           bucket.tick.startColor[1],
           bucket.tick.startColor[2],
-          alpha
+          tickAlpha
         ];
 
         bucket.tick.endColor = [
           bucket.tick.endColor[0],
           bucket.tick.endColor[1],
           bucket.tick.endColor[2],
-          alpha
+          tickAlpha
         ];
 
         if (!bucket.display) {
@@ -414,7 +451,7 @@ export class AxisStore {
             padding: labelPadding,
             type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
           },
-          color: [labelColor[0], labelColor[1], labelColor[2], alpha],
+          color: [labelColor[0], labelColor[1], labelColor[2], labelAlpha],
           fontSize: labelSize,
           origin: position,
           text,
@@ -445,8 +482,8 @@ export class AxisStore {
             [position[0] - tickLength, position[1]] :
             [position[0], position[1] + tickLength],
           thickness: [tickWidth, tickWidth],
-          startColor: [1, 1, 1, alpha],
-          endColor: [1, 1, 1, alpha]
+          startColor: [1, 1, 1, tickAlpha],
+          endColor: [1, 1, 1, tickAlpha]
         });
 
         const day = moment(this.startDate).add(index, 'days').toDate();
@@ -462,7 +499,7 @@ export class AxisStore {
               padding: labelPadding + labelSize,
               type: AnchorType.TopMiddle
             },
-            color: [labelColor[0], labelColor[1], labelColor[2], alpha],
+            color: [labelColor[0], labelColor[1], labelColor[2], labelAlpha],
             fontSize: labelSize,
             origin: position,
             text: `${day.getFullYear()}`
