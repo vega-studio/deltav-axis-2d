@@ -21,6 +21,11 @@ const monthsLength = [1, 3, 6, 12];
 const intLengthsRegYear = [28, 90, 191, 365];
 const intLengthsLeapYear = [29, 91, 192, 366];
 
+const SEC_LEN = 1000;
+const MIN_LEN = 60 * SEC_LEN;
+const HOU_LEN = 60 * MIN_LEN;
+const DAY_LEN = 24 * HOU_LEN;
+
 function isLeapYear(year: number) {
   const div4: boolean = year % 4 === 0;
   const div100: boolean = year % 100 === 0;
@@ -44,6 +49,193 @@ function insert(
   indices: number[]
 ) {
   if (index >= s && index <= e) indices.push(index + baseIndex - 1);
+}
+
+function getIndicesInASec(
+  origin: Date,
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  min: number,
+  sec: number,
+  s: number,
+  e: number,
+  lowerLevel: number,
+  higherLevel: number,
+  indices: number[]
+) {
+  const time = new Date(year, month, day, hour, min, sec);
+  const baseIndex = moment(time).diff(origin, 'milliseconds');
+
+  const hl = higherLevel < 6 ? higherLevel : 5;
+
+  for (let l = lowerLevel; l <= hl; l++) {
+    if (l === 0) {
+      for (let i = s; i <= e; i++) {
+        if (i % 5 !== 0) indices.push(baseIndex + i);
+      }
+    } else if (l === 1) {
+      const start = Math.ceil(s / 5) * 5;
+      const end = Math.floor(e / 5) * 5;
+      for (let i = start; i <= end; i += 5) {
+        if (i % 10 !== 0) indices.push(baseIndex + i);
+      }
+    } else if (l === 2) {
+      const start = Math.ceil(s / 10) * 10;
+      const end = Math.floor(e / 10) * 10;
+      for (let i = start; i <= end; i += 10) {
+        if (i % 50 != 0) indices.push(baseIndex + i);
+      }
+    } else if (l === 3) {
+      const start = Math.ceil(s / 50) * 50;
+      const end = Math.floor(e / 50) * 50;
+      for (let i = start; i <= end; i += 50) {
+        if (i % 100 != 0) indices.push(baseIndex + i);
+      }
+    } else if (l === 4) {
+      const start = Math.ceil(s / 100) * 100;
+      const end = Math.floor(e / 100) * 100;
+      for (let i = start; i <= end; i += 100) {
+        if (i % 500 != 0) indices.push(baseIndex + i);
+      }
+    } else if (l === 5) {
+      if (s <= 500 && e >= 500) indices.push(baseIndex + 500);
+    }
+  }
+}
+
+function getIndicesInAMin(
+  origin: Date,
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  min: number,
+  s: number,
+  e: number,
+  lowerLevel: number,
+  higherLevel: number,
+  indices: number[]
+) {
+  const time = new Date(year, month, day, hour, min);
+  const baseIndex = moment(time).diff(origin, 'milliseconds');
+
+  if (lowerLevel < 6) {
+    const hl = higherLevel < 6 ? higherLevel : 5;
+    for (let i = s; i <= e; i++) {
+      getIndicesInASec(origin, year, month, day, hour, min, i, 1, 999, lowerLevel, hl, indices);
+    }
+  }
+
+  const ll = lowerLevel >= 6 ? lowerLevel : 6;
+
+  for (let l = ll; l <= higherLevel; l++) {
+    if (l === 6) {
+      for (let i = s; i <= e; i++) {
+        if (i % 5 !== 0) indices.push(baseIndex + i * SEC_LEN);
+      }
+    } else if (l === 7) {
+      const start = Math.ceil(s / 5) * 5;
+      const end = Math.floor(e / 5) * 5;
+      for (let i = start; i <= end; i += 5) {
+        if (i % 15 !== 0) indices.push(baseIndex + i * SEC_LEN);
+      }
+    } else if (l === 8) {
+      if (s <= 15 && e >= 15) indices.push(baseIndex + 15 * SEC_LEN);
+      if (s <= 45 && e >= 45) indices.push(baseIndex + 45 * SEC_LEN);
+    } else if (l === 9) {
+      if (s <= 30 && e >= 30) indices.push(baseIndex + 30 * SEC_LEN);
+    }
+  }
+}
+
+function getIndicesInAHour(
+  origin: Date,
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  s: number,
+  e: number,
+  lowerLevel: number,
+  higherLevel: number,
+  indices: number[]
+) {
+  const time = new Date(year, month, day, hour);
+  const baseIndex = moment(time).diff(origin, 'milliseconds');
+
+  if (lowerLevel < 10) {
+    const hl = higherLevel < 10 ? higherLevel : 9;
+    for (let i = s; i <= e; i++) {
+      getIndicesInAMin(origin, year, month, day, hour, i, 1, 59, lowerLevel, hl, indices);
+    }
+  }
+
+  const ll = lowerLevel >= 10 ? lowerLevel : 10;
+
+  for (let l = ll; l <= higherLevel; l++) {
+    if (l === 10) {
+      for (let i = s; i <= e; i++) {
+        if (i % 5 !== 0) indices.push(baseIndex + i * MIN_LEN);
+      }
+    } else if (l === 11) {
+      const start = Math.ceil(s / 5) * 5;
+      const end = Math.floor(e / 5) * 5;
+      for (let i = start; i <= end; i += 5) {
+        if (i % 15 !== 0) indices.push(baseIndex + i * MIN_LEN);
+      }
+    } else if (l === 12) {
+      if (s <= 15 && e >= 15) indices.push(baseIndex + 15 * MIN_LEN);
+      if (s <= 45 && e >= 45) indices.push(baseIndex + 45 * MIN_LEN);
+    } else if (l === 13) {
+      if (s <= 30 && e >= 30) indices.push(baseIndex + 30 * MIN_LEN);
+    }
+  }
+}
+
+function getIndicesInADay(
+  origin: Date,
+  year: number,
+  month: number,
+  day: number,
+  s: number,
+  e: number,
+  lowerLevel: number,
+  higherLevel: number,
+  indices: number[]
+) {
+  const time = new Date(year, month, day);
+  const baseIndex = moment(time).diff(origin, 'milliseconds');
+
+  if (lowerLevel < 14) {
+    const hl = higherLevel < 14 ? higherLevel : 13;
+    for (let i = s; i <= e; i++) {
+      getIndicesInAHour(origin, year, month, day, i, 1, 59, lowerLevel, hl, indices);
+    }
+  }
+
+  const ll = lowerLevel >= 14 ? lowerLevel : 14;
+
+  for (let l = ll; l <= higherLevel; l++) {
+    if (l === 14) {
+      for (let i = s; i <= e; i++) {
+        if (i % 3 !== 0) indices.push(baseIndex + i * HOU_LEN);
+      }
+    } else if (l === 15) {
+      const start = Math.ceil(s / 3) * 3;
+      const end = Math.floor(e / 3) * 3;
+
+      for (let i = start; i <= end; i += 3) {
+        if (i % 6 !== 0) indices.push(baseIndex + i * HOU_LEN);
+      }
+    } else if (l === 16) {
+      if (s <= 6 && e >= 6) indices.push(baseIndex + 6 * MIN_LEN);
+      if (s <= 18 && e >= 18) indices.push(baseIndex + 18 * MIN_LEN);
+    } else if (l === 17) {
+      if (s <= 12 && e >= 12) indices.push(baseIndex + 18 * MIN_LEN);
+    }
+  }
 }
 
 function getIndices28(
@@ -286,7 +478,7 @@ export function getIndices(
   const sd = startDate.getDate();
   const ed = endDate.getDate();
 
-  const ll = lowerLevel && lowerLevel > 1 ? lowerLevel : 1
+  const ll = lowerLevel && lowerLevel > 1 ? lowerLevel : 1;
 
   if (ll >= 7) {
     const baseYear = om == 0 && od == 1 ? oy : oy + 1;
