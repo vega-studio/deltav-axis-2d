@@ -168,7 +168,7 @@ function getIndicesInAHour(
   if (lowerLevel < 10) {
     const hl = higherLevel < 10 ? higherLevel : 9;
     for (let i = s; i <= e; i++) {
-      getIndicesInAMin(origin, year, month, day, hour, i, 1, 59, lowerLevel, hl, indices);
+      getIndicesInAMin(origin, year, month, day, hour, i, 0, 59, lowerLevel, hl, indices);
     }
   }
 
@@ -211,7 +211,7 @@ function getIndicesInADay(
   if (lowerLevel < 14) {
     const hl = higherLevel < 14 ? higherLevel : 13;
     for (let i = s; i <= e; i++) {
-      getIndicesInAHour(origin, year, month, day, i, 1, 59, lowerLevel, hl, indices);
+      getIndicesInAHour(origin, year, month, day, i, 0, 59, lowerLevel, hl, indices);
     }
   }
 
@@ -271,6 +271,53 @@ function getIndices28(
   return indices;
 }
 
+// 18, 19, 20, 21, 22
+function getIndices282(
+  origin: Date,
+  year: number,
+  s: number,
+  e: number,
+  lowerLevel: number,
+  higherLevel: number,
+  indices: number[]
+) {
+  if (lowerLevel < 18) {
+    const hl = higherLevel < 18 ? higherLevel : 17;
+    for (let i = s; i <= e; i++) {
+      getIndicesInADay(origin, year, 1, i, 0, 23, lowerLevel, hl, indices);
+    }
+  }
+
+  const monthStartDay = new Date(year, 1, 1);
+  const baseIndex = moment(monthStartDay).diff(origin, 'milliseconds');
+
+  const ll = lowerLevel >= 18 ? lowerLevel : 18;
+  for (let l = ll; l <= higherLevel; l++) {
+    if (l === 18) {
+      const nums = [2, 3, 5, 6, 7, 9, 10, 12, 13, 14, 16, 17, 19, 20, 21, 23, 24, 26, 27, 28];
+
+      for (const index of nums) {
+        if (index >= s && index <= e) {
+          indices.push(baseIndex + (index - 1) * DAY_LEN);
+        }
+      }
+    } else if (l === 19) {
+      const nums = [4, 11, 18, 25];
+
+      for (const index of nums) {
+        if (index >= s && index <= e) {
+          indices.push(baseIndex + (index - 1) * DAY_LEN);
+        }
+      }
+    } else if (l === 20) {
+      if (8 >= s && 8 <= e) indices.push(baseIndex + 7 * DAY_LEN);
+      if (22 >= s && 22 <= e) indices.push(baseIndex + 21 * DAY_LEN);
+    } else if (l === 21) {
+      if (15 >= s && 15 <= e) indices.push(baseIndex + 14 * DAY_LEN);
+    }
+  }
+}
+
 function getIndices29(
   y: number,
   origin: Date,
@@ -303,6 +350,52 @@ function getIndices29(
   }
 
   return indices;
+}
+
+function getIndices292(
+  origin: Date,
+  year: number,
+  s: number,
+  e: number,
+  lowerLevel: number,
+  higherLevel: number,
+  indices: number[]
+) {
+  if (lowerLevel < 18) {
+    const hl = higherLevel < 18 ? higherLevel : 17;
+    for (let i = s; i <= e; i++) {
+      getIndicesInADay(origin, year, 1, i, 0, 23, lowerLevel, hl, indices);
+    }
+  }
+
+  const monthStartDay = new Date(year, 1, 1);
+  const baseIndex = moment(monthStartDay).diff(origin, 'milliseconds');
+
+  const ll = lowerLevel >= 18 ? lowerLevel : 18;
+  for (let l = ll; l <= higherLevel; l++) {
+    if (l === 18) {
+      const nums = [2, 3, 5, 6, 7, 9, 10, 12, 13, 14, 16, 17, 19, 20, 21, 23, 24, 25, 27, 28, 29];
+
+      for (const index of nums) {
+        if (index >= s && index <= e) {
+          indices.push(baseIndex + (index - 1) * DAY_LEN);
+        }
+      }
+    } else if (l === 19) {
+      const nums = [4, 11, 18, 26];
+
+      for (const index of nums) {
+        if (index >= s && index <= e) {
+          indices.push(baseIndex + (index - 1) * DAY_LEN);
+        }
+      }
+    } else if (l === 20) {
+      if (8 >= s && 8 <= e) indices.push(baseIndex + 7 * DAY_LEN);
+      if (22 >= s && 22 <= e) indices.push(baseIndex + 21 * DAY_LEN);
+    } else if (l === 21) {
+      if (15 >= s && 15 <= e) indices.push(baseIndex + 14 * DAY_LEN);
+    }
+  }
 }
 
 function getIndices30(
@@ -340,6 +433,54 @@ function getIndices30(
   }
 
   return indices;
+}
+
+function getIndices302(
+  origin: Date,
+  year: number,
+  month: number,
+  s: number,
+  e: number,
+  lowerLevel: number,
+  higherLevel: number,
+  indices: number[]
+) {
+  if (lowerLevel < 18) {
+    const hl = higherLevel < 18 ? higherLevel : 17;
+    for (let i = s; i <= e; i++) {
+      getIndicesInADay(origin, year, month, i, 0, 23, lowerLevel, hl, indices);
+    }
+  }
+
+  const monthStartDay = new Date(year, month, 1);
+  const baseIndex = moment(monthStartDay).diff(origin, 'milliseconds');
+
+  const ll = lowerLevel >= 18 ? lowerLevel : 18;
+
+  for (let l = ll; l <= higherLevel; l++) {
+    if (l === 18) {
+      const nums = [2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28, 29, 30];
+
+      for (const index of nums) {
+        if (index >= s && index <= e) {
+          indices.push(baseIndex + (index - 1) * DAY_LEN);
+        }
+      }
+    } else if (l === 19) {
+      const nums = [4, 12, 19, 27];
+
+      for (const index of nums) {
+        if (index >= s && index <= e) {
+          indices.push(baseIndex + (index - 1) * DAY_LEN);
+        }
+      }
+    } else if (l === 20) {
+      if (8 >= s && 8 <= e) indices.push(baseIndex + 7 * DAY_LEN);
+      if (23 >= s && 23 <= e) indices.push(baseIndex + 22 * DAY_LEN);
+    } else if (l === 21) {
+      if (15 >= s && 15 <= e) indices.push(baseIndex + 14 * DAY_LEN);
+    }
+  }
 }
 
 function getIndices31(
@@ -381,6 +522,125 @@ function getIndices31(
   }
 
   return indices;
+}
+
+function getIndices312(
+  origin: Date,
+  year: number,
+  month: number,
+  s: number,
+  e: number,
+  lowerLevel: number,
+  higherLevel: number,
+  indices: number[]
+) {
+  if (lowerLevel < 18) {
+    const hl = higherLevel < 18 ? higherLevel : 17;
+    for (let i = s; i <= e; i++) {
+      getIndicesInADay(origin, year, month, i, 0, 23, lowerLevel, hl, indices);
+    }
+  }
+
+  const monthStartDay = new Date(year, month, 1);
+  const baseIndex = moment(monthStartDay).diff(origin, 'milliseconds');
+
+  const ll = lowerLevel >= 18 ? lowerLevel : 18;
+
+  for (let l = ll; l <= higherLevel; l++) {
+    if (l === 18) {
+      const nums = [2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 17, 18, 19, 21, 22, 23, 25, 26, 27, 29, 30, 31];
+
+      for (const index of nums) {
+        if (index >= s && index <= e) {
+          indices.push(baseIndex + (index - 1) * DAY_LEN);
+        }
+      }
+    } else if (l === 19) {
+      const nums = [4, 12, 20, 28];
+
+      for (const index of nums) {
+        if (index >= s && index <= e) {
+          indices.push(baseIndex + (index - 1) * DAY_LEN);
+        }
+      }
+    } else if (l === 20) {
+      if (8 >= s && 8 <= e) indices.push(baseIndex + 7 * DAY_LEN);
+      if (24 >= s && 24 <= e) indices.push(baseIndex + 23 * DAY_LEN);
+    } else if (l === 21) {
+      if (16 >= s && 16 <= e) indices.push(baseIndex + 15 * DAY_LEN);
+    }
+  }
+}
+
+function getIndicesInAMonth2(
+  origin: Date,
+  year: number,
+  month: number,
+  s: number,
+  e: number,
+  lowerLevel: number,
+  higherLevel: number,
+  indices: number[]
+) {
+  if (month == 1) {
+    if (isLeapYear(year)) {
+      getIndices292(origin, year, s, e, lowerLevel, higherLevel, indices);
+    } else {
+      getIndices282(origin, year, s, e, lowerLevel, higherLevel, indices);
+    }
+  } else if (month === 3 || month === 5 || month === 8 || month === 10) {
+    getIndices302(origin, year, month, s, e, lowerLevel, higherLevel, indices);
+  } else {
+    getIndices312(origin, year, month, s, e, lowerLevel, higherLevel, indices);
+  }
+}
+
+function getIndicesInAYear2(
+  origin: Date,
+  year: number,
+  s: number,
+  e: number,
+  lowerLevel: number,
+  higherLevel: number,
+  indices: number[]
+) {
+  if (lowerLevel < 22) {
+    const hl = higherLevel < 22 ? higherLevel : 21;
+    for (let i = s; i <= e; i++) {
+      const end = getMonthLength(year, i);
+      getIndicesInAMonth2(origin, year, i, 1, end, lowerLevel, higherLevel, indices);
+    }
+  }
+
+  const ll = lowerLevel < 22 ? 22 : lowerLevel;
+
+  for (let l = ll; l <= higherLevel; l++) {
+    if (l === 22) {
+      for (let i = s; i <= e; i++) {
+        if (i % 3 !== 0) {
+          const firstDay = new Date(year, i, 1);
+          const index = moment(firstDay).diff(origin, "milliseconds");
+          indices.push(index);
+        }
+      }
+    } else if (l === 23) {
+      const nums = [3, 9];
+
+      for (const i of nums) {
+        if (i >= s && i <= e) {
+          const firstDay = new Date(year, i, 1);
+          const index = moment(firstDay).diff(origin, "milliseconds");
+          indices.push(index);
+        }
+      }
+    } else if (l === 24) {
+      if (6 >= s && 6 <= e) {
+        const firstDay = new Date(year, 6, 1);
+        const index = moment(firstDay).diff(origin, "milliseconds");
+        indices.push(index);
+      }
+    }
+  }
 }
 
 function getIndicesInAMonth(
@@ -537,6 +797,65 @@ export function getIndices(
   }
 
   return indices;
+}
+
+function getIndicesAtLevel(
+  origin: Date,
+  startDate: Date,
+  endDate: Date,
+  totalYears: number,
+  level: number
+) {
+  const indices: number[] = [];
+
+  const oy = origin.getFullYear();
+  const om = origin.getMonth();
+  const od = origin.getDate();
+
+  const sy = startDate.getFullYear();
+  const ey = endDate.getFullYear();
+
+  const sm = startDate.getMonth();
+  const em = endDate.getMonth();
+
+  const sd = startDate.getDate();
+  const ed = endDate.getDate();
+
+  const sh = startDate.getHours();
+  // Year interval
+  if (level >= 25) {
+
+  }
+
+  // Within a year
+  else if (level >= 22) {
+
+  }
+
+  // Within a month
+  else if (level >= 18) {
+
+  }
+
+  // Within a day
+  else if (level >= 14) {
+
+  }
+
+  // Within an hour
+  else if (level >= 10) {
+
+  }
+
+  // Within a minute
+  else if (level >= 6) {
+
+  }
+
+  // Within a second
+  else {
+
+  }
 }
 
 export function getMaxLevel(startDate: Date, endDate: Date) {
