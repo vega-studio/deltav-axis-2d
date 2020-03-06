@@ -1,6 +1,6 @@
 import { InstanceProvider, EdgeInstance, LabelInstance, Color, AnchorType } from "deltav";
 import { AxisDataType, Vec2, Vec3, Bucket } from "src/types";
-import { dateLevel, travelDates, getDayLevel, getIntervalLengths, getIndices } from "src/util/dateUtil";
+import { dateLevel, getDayLevel, getMomentLevel, getIntervalLengths, getIndices, getIndices2, getIndicesAtLevel, getIntervalLengths2 } from "src/util/dateUtil";
 import moment from 'moment';
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -240,7 +240,8 @@ export class AxisStore {
         const endDate = options.endDate;
         this.startDate = typeof startDate === "string" ? new Date(startDate) : startDate;
         this.endDate = typeof endDate === "string" ? new Date(endDate) : endDate;
-        this.unitNumber = moment(this.endDate).diff(moment(this.startDate), 'days') + 1;
+        this.unitNumber = moment(this.endDate).diff(moment(this.startDate), 'milliseconds') + 1;
+
         this.totalYears = this.endDate.getFullYear() - this.startDate.getFullYear();
 
         if (this.startDate.getMonth() == 0 && this.startDate.getDate() === 1) {
@@ -275,7 +276,7 @@ export class AxisStore {
   }
 
   generateDateInterval() {
-    this.dateIntervalLengths = getIntervalLengths(this.startDate, this.endDate);
+    this.dateIntervalLengths = getIntervalLengths2(this.startDate, this.endDate);
     let level = Math.floor(Math.log2(this.totalYears));
     let daysInAYear = this.dateIntervalLengths[this.dateIntervalLengths.length - 1];
 
@@ -315,7 +316,6 @@ export class AxisStore {
   }
 
   resize() {
-    console.warn("Resize", this.type);
     if (this.resizeWithWindow) {
       const newWidth = window.innerWidth;
       const newHeight = window.innerHeight;
@@ -362,13 +362,52 @@ export class AxisStore {
       if (number % 1 !== 0) return number.toFixed(this.decimalLength);
       return number.toString();
     } else if (this.type === AxisDataType.DATE) {
-      const startDate = this.startDate;
-      const currentDate = moment(startDate).add(index, 'days').toDate();
-      if (currentDate.getMonth() == 0 && currentDate.getDate() == 1) {
-        return `${currentDate.getFullYear()}`;
-      }
-      return `${monthNames[currentDate.getMonth()]} ${currentDate.getDate()}`;
+      return this.getDateLabel1(index);
     }
+  }
+
+  getDateLabel1(index: number) {
+    const startDate = this.startDate;
+    const currentDate = moment(startDate).add(index, 'milliseconds').toDate();
+
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const day = currentDate.getDate();
+    const hour = currentDate.getHours();
+    const minute = currentDate.getMinutes();
+    const second = currentDate.getSeconds();
+    const ms = currentDate.getMilliseconds();
+
+    if (month === 0 && day === 1 && hour === 0 && minute === 0 && second === 0 && ms === 0) {
+      return `${year} Year`;
+    } else if (hour === 0 && minute === 0 && second === 0 && ms === 0) {
+      return `${monthNames[month]} ${day}`
+    } else if (ms === 0) {
+      return `${hour}:${minute < 10 ? '0' : ''}${minute}:${second < 10 ? '0' : ''}${second}`;
+    }
+
+    return `${ms} ms`
+  }
+
+  getDateLabel2(index: number) {
+    const startDate = this.startDate;
+    const currentDate = moment(startDate).add(index, 'milliseconds').toDate();
+
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const day = currentDate.getDate();
+    const hour = currentDate.getHours();
+    const minute = currentDate.getMinutes();
+    const second = currentDate.getSeconds();
+    const ms = currentDate.getMilliseconds();
+
+    if (hour === 0 && minute === 0 && second === 0 && ms === 0) {
+      return `${year}`
+    } else if (ms === 0) {
+      return `${monthNames[month]} ${day}`
+    }
+
+    return `${hour}:${minute < 10 ? '0' : ''}${minute}:${second < 10 ? '0' : ''}${second}`;
   }
 
   setBucket(index: number, position: Vec2, alpha: number) {
@@ -486,7 +525,7 @@ export class AxisStore {
           endColor: [1, 1, 1, tickAlpha]
         });
 
-        const day = moment(this.startDate).add(index, 'days').toDate();
+        const day = moment(this.startDate).add(index, 'milliseconds').toDate();
 
         if (
           this.type === AxisDataType.DATE &&
@@ -502,7 +541,7 @@ export class AxisStore {
             color: [labelColor[0], labelColor[1], labelColor[2], labelAlpha],
             fontSize: labelSize,
             origin: position,
-            text: `${day.getFullYear()}`
+            text: this.getDateLabel2(index)
           });
 
           const bucket: Bucket = { label1, label2, tick, display: true };
@@ -699,53 +738,38 @@ export class AxisStore {
     const unitW = unitWidth * curScale;
     const origin = view.origin;
 
-    if (this.scaleLevel === 0) {
-      for (let index = this.indexRange[0]; index <= this.indexRange[1]; index++) {
-        const day = moment(this.startDate).add(index, 'days').toDate();
-        const level = getDayLevel(this.startDate, day, this.totalYears);
+    const sd = moment(this.startDate).add(this.indexRange[0], 'milliseconds').toDate();
+    const ed = moment(this.startDate).add(this.indexRange[1], 'milliseconds').toDate();
 
-        if (this.verticalLayout) {
-          const y = origin[1] - (index + 0.5) * unitH - this.offset;
-          let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
-          if (level >= this.scaleLevel + 1) alpha = 1;
-          this.setBucket(index, [origin[0], y], alpha);
-        } else {
-          const x = origin[0] + (index + 0.5) * unitW + this.offset;
-          let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
-          if (level >= this.scaleLevel + 1) alpha = 1;
-          this.setBucket(index, [x, origin[1]], alpha);
-        }
-      }
-    } else {
-      const sd = moment(this.startDate).add(this.indexRange[0], 'days').toDate();
-      const ed = moment(this.startDate).add(this.indexRange[1], 'days').toDate();
-      const indices = getIndices(this.startDate, sd, ed, this.totalYears, this.scaleLevel);
+    const maxLevel = Math.floor(Math.log2(this.totalYears)) + 25;
+    const indices = getIndices2(this.startDate, sd, ed, this.totalYears, this.scaleLevel, maxLevel);
 
-      for (let i = 0; i < indices.length; i++) {
-        const index = indices[i];
-        const day = moment(this.startDate).add(index, 'days').toDate();
-        const level = getDayLevel(this.startDate, day, this.totalYears);
+    for (let i = 0; i < indices.length; i++) {
+      const index = indices[i];
+      const day = moment(this.startDate).add(index, 'milliseconds').toDate();
+      const level = getMomentLevel(this.startDate, day, this.totalYears);
 
-        if (this.verticalLayout) {
-          const y = origin[1] - (index + 0.5) * unitH - this.offset;
-          let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
-          if (level >= this.scaleLevel + 1) alpha = 1;
-          this.setBucket(index, [origin[0], y], alpha);
-        } else {
-          const x = origin[0] + (index + 0.5) * unitW + this.offset;
-          let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
-          if (level >= this.scaleLevel + 1) alpha = 1;
-          this.setBucket(index, [x, origin[1]], alpha);
-        }
+      if (this.verticalLayout) {
+        const y = origin[1] - (index + 0.5) * unitH - this.offset;
+        let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+        if (level >= this.scaleLevel + 1) alpha = 1;
+        this.setBucket(index, [origin[0], y], alpha);
+      } else {
+        const x = origin[0] + (index + 0.5) * unitW + this.offset;
+        let alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
+        if (level >= this.scaleLevel + 1) alpha = 1;
+        this.setBucket(index, [x, origin[1]], alpha);
       }
     }
+
   }
 
   removeBuckets(start: number, end: number, interval: number) {
     if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
       this.removeLabelOrNumberBuckets(start, end, interval);
     } else {
-      this.removeDateBuckets(start, end, 0);
+      const maxLevel = Math.floor(Math.log2(this.totalYears)) + 25;
+      this.removeDateBuckets(start, end, this.preScaleLevel, maxLevel);
     }
   }
 
@@ -768,44 +792,26 @@ export class AxisStore {
   }
 
   removeDateBuckets(start: number, end: number, lowerLevel: number, higherLevel?: number) {
-    if (lowerLevel === 0) {
-      for (let index = start; index <= end; index++) {
-        if (this.bucketMap.has(index)) {
-          const bucket = this.bucketMap.get(index);
-          const day = moment(this.startDate).add(index, 'days').toDate();
-          const level = getDayLevel(this.startDate, day, this.totalYears);
-          const atLevel0 = level == 0;
-          const higherLevelBiggerThanZero = higherLevel && higherLevel > 0;
-          const higherLevelNotExist = !higherLevel && higherLevel != 0;
-          const toRemove = atLevel0 || higherLevelBiggerThanZero || higherLevelNotExist;
 
-          if (bucket.display && toRemove) {
-            bucket.display = false;
-            this.providers.labels.remove(bucket.label1);
-            if (bucket.label2) this.providers.labels.remove(bucket.label2);
-            this.providers.ticks.remove(bucket.tick);
-          }
+    const s = moment(this.startDate).add(start, 'milliseconds').toDate();
+    const e = moment(this.startDate).add(end, 'milliseconds').toDate();
+
+    const indices = getIndices2(this.startDate, s, e, this.totalYears, lowerLevel, higherLevel);
+
+    for (let i = 0; i < indices.length; i++) {
+      const index = indices[i];
+
+      if (this.bucketMap.has(index)) {
+        const bucket = this.bucketMap.get(index);
+
+        if (bucket.display) {
+          bucket.display = false;
+          this.providers.labels.remove(bucket.label1);
+          if (bucket.label2) this.providers.labels.remove(bucket.label2);
+          this.providers.ticks.remove(bucket.tick);
         }
       }
-    } else {
-      const s = moment(this.startDate).add(start, 'days').toDate();
-      const e = moment(this.startDate).add(end, 'days').toDate();
-      const indices = getIndices(this.startDate, s, e, this.totalYears, lowerLevel, higherLevel);
 
-      for (let i = 0; i < indices.length; i++) {
-        const index = indices[i];
-
-        if (this.bucketMap.has(index)) {
-          const bucket = this.bucketMap.get(index);
-
-          if (bucket.display) {
-            bucket.display = false;
-            this.providers.labels.remove(bucket.label1);
-            if (bucket.label2) this.providers.labels.remove(bucket.label2);
-            this.providers.ticks.remove(bucket.tick);
-          }
-        }
-      }
     }
   }
 
@@ -958,7 +964,7 @@ export class AxisStore {
         this.removeLabelOrNumberBuckets(start, end, this.preInterval);
       }
     } else if (this.type === AxisDataType.DATE) {
-      this.removeDateBuckets(start, end, this.scaleLevel - 1, this.scaleLevel - 1);
+      this.removeDateBuckets(start, end, this.scaleLevel - 5, this.scaleLevel - 1);
     }
 
     // update index range

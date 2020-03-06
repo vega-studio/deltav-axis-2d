@@ -85,22 +85,22 @@ function getIndicesInASec(
       const start = Math.ceil(s / 10) * 10;
       const end = Math.floor(e / 10) * 10;
       for (let i = start; i <= end; i += 10) {
-        if (i % 50 != 0) indices.push(baseIndex + i);
+        if (i % 50 !== 0) indices.push(baseIndex + i);
       }
     } else if (l === 3) {
       const start = Math.ceil(s / 50) * 50;
       const end = Math.floor(e / 50) * 50;
       for (let i = start; i <= end; i += 50) {
-        if (i % 100 != 0) indices.push(baseIndex + i);
+        if (i % 100 !== 0) indices.push(baseIndex + i);
       }
     } else if (l === 4) {
       const start = Math.ceil(s / 100) * 100;
       const end = Math.floor(e / 100) * 100;
       for (let i = start; i <= end; i += 100) {
-        if (i % 500 != 0) indices.push(baseIndex + i);
+        if (i % 500 !== 0) indices.push(baseIndex + i);
       }
     } else if (l === 5) {
-      if (s <= 500 && e >= 500) indices.push(baseIndex + 500);
+      if (500 >= s && 500 <= e) indices.push(baseIndex + 500);
     }
   }
 }
@@ -194,6 +194,27 @@ function getIndicesInAHour(
   }
 }
 
+function insertAnHour(
+  year: number,
+  month: number,
+  day: number,
+  index: number,
+  baseIndex: number,
+  indices: number[]
+) {
+  const baseHour = new Date(year, month, day);
+  const hour = new Date(year, month, day, index);
+  const diff = moment(hour).diff(baseHour, 'milliseconds');
+  indices.push(baseIndex + diff);
+
+  if (moment(baseHour).isDST() && !moment(new Date(year, month, day, 23)).isDST()) {
+    console.warn("DST is over!", baseHour);
+    if (index === 2) {
+      indices.push(baseIndex + diff + DAY_LEN)
+    }
+  }
+}
+
 function getIndicesInADay(
   origin: Date,
   year: number,
@@ -220,20 +241,20 @@ function getIndicesInADay(
   for (let l = ll; l <= higherLevel; l++) {
     if (l === 14) {
       for (let i = s; i <= e; i++) {
-        if (i % 3 !== 0) indices.push(baseIndex + i * HOU_LEN);
+        if (i % 3 !== 0) insertAnHour(year, month, day, i, baseIndex, indices);
       }
     } else if (l === 15) {
       const start = Math.ceil(s / 3) * 3;
       const end = Math.floor(e / 3) * 3;
 
       for (let i = start; i <= end; i += 3) {
-        if (i % 6 !== 0) indices.push(baseIndex + i * HOU_LEN);
+        if (i % 6 !== 0) insertAnHour(year, month, day, i, baseIndex, indices);
       }
     } else if (l === 16) {
-      if (s <= 6 && e >= 6) indices.push(baseIndex + 6 * MIN_LEN);
-      if (s <= 18 && e >= 18) indices.push(baseIndex + 18 * MIN_LEN);
+      if (s <= 6 && e >= 6) insertAnHour(year, month, day, 6, baseIndex, indices);
+      if (s <= 18 && e >= 18) insertAnHour(year, month, day, 18, baseIndex, indices);
     } else if (l === 17) {
-      if (s <= 12 && e >= 12) indices.push(baseIndex + 18 * MIN_LEN);
+      if (s <= 12 && e >= 12) insertAnHour(year, month, day, 12, baseIndex, indices);
     }
   }
 }
@@ -298,7 +319,7 @@ function getIndices282(
 
       for (const index of nums) {
         if (index >= s && index <= e) {
-          indices.push(baseIndex + (index - 1) * DAY_LEN);
+          insertADay(year, 1, index, monthStartDay, baseIndex, indices);
         }
       }
     } else if (l === 19) {
@@ -306,14 +327,14 @@ function getIndices282(
 
       for (const index of nums) {
         if (index >= s && index <= e) {
-          indices.push(baseIndex + (index - 1) * DAY_LEN);
+          insertADay(year, 1, index, monthStartDay, baseIndex, indices);
         }
       }
     } else if (l === 20) {
-      if (8 >= s && 8 <= e) indices.push(baseIndex + 7 * DAY_LEN);
-      if (22 >= s && 22 <= e) indices.push(baseIndex + 21 * DAY_LEN);
+      if (8 >= s && 8 <= e) insertADay(year, 1, 8, monthStartDay, baseIndex, indices);
+      if (22 >= s && 22 <= e) insertADay(year, 1, 22, monthStartDay, baseIndex, indices);
     } else if (l === 21) {
-      if (15 >= s && 15 <= e) indices.push(baseIndex + 14 * DAY_LEN);
+      if (15 >= s && 15 <= e) insertADay(year, 1, 15, monthStartDay, baseIndex, indices);
     }
   }
 }
@@ -435,6 +456,19 @@ function getIndices30(
   return indices;
 }
 
+function insertADay(
+  year: number,
+  month: number,
+  index: number,
+  monthStartDay: Date,
+  baseIndex: number,
+  indices: number[]
+) {
+  const day = new Date(year, month, index);
+  const diff = moment(day).diff(monthStartDay, 'milliseconds');
+  indices.push(baseIndex + diff);
+}
+
 function getIndices302(
   origin: Date,
   year: number,
@@ -453,6 +487,7 @@ function getIndices302(
   }
 
   const monthStartDay = new Date(year, month, 1);
+
   const baseIndex = moment(monthStartDay).diff(origin, 'milliseconds');
 
   const ll = lowerLevel >= 18 ? lowerLevel : 18;
@@ -463,7 +498,7 @@ function getIndices302(
 
       for (const index of nums) {
         if (index >= s && index <= e) {
-          indices.push(baseIndex + (index - 1) * DAY_LEN);
+          insertADay(year, month, index, monthStartDay, baseIndex, indices);
         }
       }
     } else if (l === 19) {
@@ -471,14 +506,14 @@ function getIndices302(
 
       for (const index of nums) {
         if (index >= s && index <= e) {
-          indices.push(baseIndex + (index - 1) * DAY_LEN);
+          insertADay(year, month, index, monthStartDay, baseIndex, indices);
         }
       }
     } else if (l === 20) {
-      if (8 >= s && 8 <= e) indices.push(baseIndex + 7 * DAY_LEN);
-      if (23 >= s && 23 <= e) indices.push(baseIndex + 22 * DAY_LEN);
+      if (8 >= s && 8 <= e) insertADay(year, month, 8, monthStartDay, baseIndex, indices);
+      if (23 >= s && 23 <= e) insertADay(year, month, 23, monthStartDay, baseIndex, indices);
     } else if (l === 21) {
-      if (15 >= s && 15 <= e) indices.push(baseIndex + 14 * DAY_LEN);
+      if (15 >= s && 15 <= e) insertADay(year, month, 15, monthStartDay, baseIndex, indices);
     }
   }
 }
@@ -552,7 +587,7 @@ function getIndices312(
 
       for (const index of nums) {
         if (index >= s && index <= e) {
-          indices.push(baseIndex + (index - 1) * DAY_LEN);
+          insertADay(year, month, index, monthStartDay, baseIndex, indices);
         }
       }
     } else if (l === 19) {
@@ -560,14 +595,14 @@ function getIndices312(
 
       for (const index of nums) {
         if (index >= s && index <= e) {
-          indices.push(baseIndex + (index - 1) * DAY_LEN);
+          insertADay(year, month, index, monthStartDay, baseIndex, indices);
         }
       }
     } else if (l === 20) {
-      if (8 >= s && 8 <= e) indices.push(baseIndex + 7 * DAY_LEN);
-      if (24 >= s && 24 <= e) indices.push(baseIndex + 23 * DAY_LEN);
+      if (8 >= s && 8 <= e) insertADay(year, month, 8, monthStartDay, baseIndex, indices);
+      if (24 >= s && 24 <= e) insertADay(year, month, 24, monthStartDay, baseIndex, indices);
     } else if (l === 21) {
-      if (16 >= s && 16 <= e) indices.push(baseIndex + 15 * DAY_LEN);
+      if (16 >= s && 16 <= e) insertADay(year, month, 16, monthStartDay, baseIndex, indices);
     }
   }
 }
@@ -714,6 +749,23 @@ function getDays(year: number, month: number) {
   return 31;
 }
 
+export function getIndices2(
+  origin: Date,
+  startDate: Date,
+  endDate: Date,
+  totalYears: number,
+  lowerLevel: number,
+  higherLevel: number
+) {
+  const indices: number[] = [];
+
+  for (let level = lowerLevel; level <= higherLevel; level++) {
+    getIndicesAtLevel(origin, startDate, endDate, totalYears, level, indices);
+  }
+
+  return indices;
+}
+
 // This returns all the dates' index from start date to end date at specific level 
 export function getIndices(
   origin: Date,
@@ -799,15 +851,14 @@ export function getIndices(
   return indices;
 }
 
-function getIndicesAtLevel(
+export function getIndicesAtLevel(
   origin: Date,
   startDate: Date,
   endDate: Date,
   totalYears: number,
-  level: number
+  level: number,
+  indices: number[]
 ) {
-  const indices: number[] = [];
-
   const oy = origin.getFullYear();
   const om = origin.getMonth();
   const od = origin.getDate();
@@ -821,41 +872,239 @@ function getIndicesAtLevel(
   const sd = startDate.getDate();
   const ed = endDate.getDate();
 
-  const sh = startDate.getHours();
-  // Year interval
+  // Year interval 2 ^ (n - 25)
   if (level >= 25) {
+    const maxLevel = Math.floor(Math.log2(totalYears)) + 25;
 
+    const yearInterval = Math.pow(2, level - 25);
+    const baseYear = om == 0 && od == 1 ? oy : oy + 1;
+    // console.warn(`~~~ maxLevel ${maxLevel} ~~~ yearInt ${yearInterval} ~~~ baseYear ${baseYear}`);
+
+    if (level === maxLevel) {
+      const firstDay = new Date(baseYear, 0, 1);
+
+      if (moment(firstDay).isBetween(startDate, endDate, null, "[]")) {
+        const index = moment(firstDay).diff(origin, 'milliseconds');
+        indices.push(index);
+      }
+    }
+
+    let year = baseYear + yearInterval;
+
+    while (year <= ey) {
+      const firstDay = new Date(year, 0, 1);
+
+      if (moment(firstDay).isBetween(startDate, endDate, null, "[]")) {
+        const index = moment(firstDay).diff(origin, 'milliseconds');
+        indices.push(index);
+      }
+
+      year += yearInterval * 2;
+    }
   }
 
   // Within a year
   else if (level >= 22) {
+    const startMonth = sd == 1 ? sm : sm + 1;
+
+    if (sy === ey) {
+      getIndicesInAYear2(origin, sy, startMonth, em, level, level, indices)
+    } else {
+      getIndicesInAYear2(origin, sy, startMonth, 11, level, level, indices);
+
+      for (let y = sy + 1; y <= ey - 1; y++) {
+        getIndicesInAYear2(origin, y, 0, 11, level, level, indices);
+      }
+
+      getIndicesInAYear2(origin, ey, 0, em, level, level, indices);
+    }
 
   }
 
   // Within a month
   else if (level >= 18) {
+    if (sy === ey) {
+      if (sm === em) {
+        getIndicesInAMonth2(origin, sy, sm, sd, ed, level, level, indices);
+      } else {
+        getIndicesInAMonth2(origin, sy, sm, sd, getDays(sy, sm), level, level, indices);
 
+        for (let m = sm + 1; m < em; m++) {
+          getIndicesInAMonth2(origin, sy, m, 1, getDays(sy, m), level, level, indices);
+        }
+
+        getIndicesInAMonth2(origin, sy, em, 1, ed, level, level, indices);
+      }
+    } else {
+      getIndicesInAMonth2(origin, sy, sm, sd, getDays(sy, sm), level, level, indices);
+
+      for (let m = sm + 1; m < 12; m++) {
+        getIndicesInAMonth2(origin, sy, m, 1, getDays(sy, m), level, level, indices);
+      }
+
+      for (let y = sy + 1; y < ey; y++) {
+        getIndicesInAYear2(origin, y, 0, 11, level, level, indices);
+      }
+
+      for (let m = 0; m < em; m++) {
+        getIndicesInAMonth2(origin, ey, m, 1, getDays(ey, m), level, level, indices);
+      }
+
+      getIndicesInAMonth2(origin, ey, em, 1, ed, level, level, indices);
+    }
   }
 
   // Within a day
   else if (level >= 14) {
+    const sh = startDate.getMinutes() === 0 ? startDate.getHours() : startDate.getHours() + 1;
+    const eh = endDate.getHours();
 
+    if (sy === ey && sm === em && sd === ed) {
+      getIndicesInADay(origin, sy, sm, sd, sh, eh, level, level, indices);
+    } else {
+      getIndicesInADay(origin, sy, sm, sd, sh, 23, level, level, indices);
+
+      const startDay = new Date(sy, sm, sd);
+      const endDay = new Date(ey, em, ed);
+
+      const len = moment(endDay).diff(startDay, 'days');
+      console.warn("diff", startDate, endDate, len);
+
+      for (let i = 1; i < len; i++) {
+        const day = moment(startDay).add(i, 'days').toDate();
+        getIndicesInADay(origin, day.getFullYear(), day.getMonth(), day.getDate(), 1, 23, level, level, indices);
+      }
+
+      getIndicesInADay(origin, ey, em, ed, 1, eh, level, level, indices);
+    }
   }
 
   // Within an hour
   else if (level >= 10) {
+    const sh = startDate.getHours();
+    const eh = endDate.getHours();
+
+    const smin = startDate.getSeconds() === 0 ? startDate.getMinutes() : startDate.getMinutes() + 1;
+    const emin = endDate.getMinutes();
+
+    if (sy === ey && sm === em && sd === ed && sh === eh) {
+      getIndicesInAHour(origin, sy, sm, sd, sh, smin, emin, level, level, indices);
+    } else {
+      getIndicesInAHour(origin, sy, sm, sd, sh, smin, 59, level, level, indices);
+
+      const startHour = new Date(sy, sm, sd, sh);
+      const endHour = new Date(ey, em, ed, eh);
+      const len = moment(endHour).diff(startHour, 'hours');
+
+      for (let i = 1; i < len; i++) {
+        const hour = moment(startHour).add(i, 'hours').toDate();
+        getIndicesInAHour(
+          origin,
+          hour.getFullYear(),
+          hour.getMonth(),
+          hour.getDate(),
+          hour.getHours(),
+          1,
+          59,
+          level,
+          level,
+          indices
+        );
+      }
+
+      getIndicesInAHour(origin, ey, em, ed, eh, 1, emin, level, level, indices);
+    }
 
   }
 
   // Within a minute
   else if (level >= 6) {
+    const sh = startDate.getHours();
+    const eh = endDate.getHours();
+
+    const smin = startDate.getMinutes();
+    const emin = endDate.getMinutes();
+
+    const ssec = startDate.getMilliseconds() === 0 ? startDate.getSeconds() : startDate.getSeconds() + 1;
+    const esec = endDate.getSeconds();
+
+    if (sy === ey && sm === em && sd === ed && sh === eh && smin === emin) {
+      getIndicesInAMin(origin, sy, sm, sd, sh, smin, ssec, esec, level, level, indices);
+    } else {
+      getIndicesInAMin(origin, sy, sm, sd, sh, smin, ssec, 59, level, level, indices);
+
+      const startMin = new Date(sy, sm, sd, sh, smin);
+      const endMin = new Date(ey, em, ed, eh, emin);
+      const len = moment(endMin).diff(startMin, 'minutes');
+
+      for (let i = 1; i < len; i++) {
+        const min = moment(startMin).add(i, 'minutes').toDate();
+        getIndicesInAMin(
+          origin,
+          min.getFullYear(),
+          min.getMonth(),
+          min.getDate(),
+          min.getHours(),
+          min.getMinutes(),
+          1,
+          59,
+          level,
+          level,
+          indices
+        );
+      }
+
+      getIndicesInAMin(origin, ey, em, ed, eh, emin, 1, esec, level, level, indices);
+    }
 
   }
 
   // Within a second
-  else {
+  else if (level >= 0) {
+    const sh = startDate.getHours();
+    const eh = endDate.getHours();
 
+    const smin = startDate.getMinutes();
+    const emin = endDate.getMinutes();
+
+    const ssec = startDate.getSeconds();
+    const esec = endDate.getSeconds();
+
+    const sms = startDate.getMilliseconds();
+    const ems = endDate.getMilliseconds();
+
+    if (sy === ey && sm === em && sd === ed && sh === eh && smin === emin && ssec === esec) {
+      getIndicesInASec(origin, sy, sm, sd, sh, smin, ssec, sms, ems, level, level, indices);
+    } else {
+      getIndicesInASec(origin, sy, sm, sd, sh, smin, ssec, sms, 999, level, level, indices);
+
+      const startSec = new Date(sy, sm, sd, sh, smin, ssec);
+      const endSec = new Date(ey, em, ed, eh, emin, esec);
+      const len = moment(endSec).diff(startSec, 'seconds');
+
+      for (let i = 1; i < len; i++) {
+        const sec = moment(startSec).add(i, 'seconds').toDate();
+        getIndicesInASec(
+          origin,
+          sec.getFullYear(),
+          sec.getMonth(),
+          sec.getDate(),
+          sec.getHours(),
+          sec.getMinutes(),
+          sec.getSeconds(),
+          1,
+          999,
+          level,
+          level,
+          indices
+        );
+      }
+
+      getIndicesInASec(origin, ey, em, ed, eh, emin, esec, 1, ems, level, level, indices);
+    }
   }
+
+  return indices;
 }
 
 export function getMaxLevel(startDate: Date, endDate: Date) {
@@ -867,42 +1116,37 @@ export function getMaxLevel(startDate: Date, endDate: Date) {
 }
 
 function getLevel28(day: number) {
-  if (day === 1) return 4;
-  if (day === 15) return 3;
-  if (day === 8 || day === 22) return 2;
-  if (day === 4 || day === 11 || day === 18 || day === 25) return 1;
-  return 0;
+  if (day === 15) return 21;
+  if (day === 8 || day === 22) return 20;
+  if (day === 4 || day === 11 || day === 18 || day === 25) return 19;
+  return 18;
 }
 
 function getLevel29(day: number) {
-  if (day === 1) return 4;
-  if (day === 15) return 3;
-  if (day === 8 || day === 22) return 2;
-  if (day === 4 || day === 11 || day === 18 || day === 26) return 1;
-  return 0;
+  if (day === 15) return 21;
+  if (day === 8 || day === 22) return 20;
+  if (day === 4 || day === 11 || day === 18 || day === 26) return 19;
+  return 18;
 }
 
-function getLevel30(month: number, day: number) {
-  if (day === 1) return getMonthLevel(month);
-  if (day === 16) return 3;
-  if (day === 8 || day === 23) return 2;
-  if (day === 4 || day === 12 || day === 19 || day === 27) return 1;
-  return 0;
+function getLevel30(day: number) {
+  if (day === 15) return 21;
+  if (day === 8 || day === 23) return 20;
+  if (day === 4 || day === 12 || day === 19 || day === 27) return 19;
+  return 18;
 }
 
-function getLevel31(month: number, day: number) {
-  if (day === 1) return getMonthLevel(month);
-  if (day === 16) return 3;
-  if (day === 8 || day === 24) return 2;
-  if (day === 4 || day === 12 || day === 20 || day === 28) return 1;
-  return 0;
+function getLevel31(day: number) {
+  if (day === 16) return 21;
+  if (day === 8 || day === 24) return 20;
+  if (day === 4 || day === 12 || day === 20 || day === 28) return 19;
+  return 18;
 }
 
 function getMonthLevel(month: number) {
-  if (month === 0) return 7;
-  if (month === 6) return 6;
-  if (month === 3 || month === 9) return 5;
-  return 4;
+  if (month === 6) return 24;
+  if (month === 3 || month === 9) return 23;
+  return 22;
 }
 
 function getLevel(year: number, month: number, day: number) {
@@ -913,10 +1157,11 @@ function getLevel(year: number, month: number, day: number) {
 
   const days = monthDays[month];
 
-  if (days === 30) return getLevel30(month, day);
+  if (days === 30) return getLevel30(day);
 
-  return getLevel31(month, day);
+  return getLevel31(day);
 }
+
 export function getDayLevel(origin: Date, day: Date, totalYears: number) {
   const oy = origin.getMonth() === 0 && origin.getDate() === 1 ?
     origin.getFullYear() : origin.getFullYear() + 1;
@@ -940,6 +1185,61 @@ export function getDayLevel(origin: Date, day: Date, totalYears: number) {
   }
 
   return getLevel(day.getFullYear(), day.getMonth(), day.getDate());
+}
+
+export function getMomentLevel(origin: Date, moment: Date, totalYears: number) {
+  const oy = origin.getMonth() === 0 && origin.getDate() === 1 ?
+    origin.getFullYear() : origin.getFullYear() + 1;
+
+  const year = moment.getFullYear();
+  const month = moment.getMonth();
+  const day = moment.getDate();
+  const hour = moment.getHours();
+  const minute = moment.getMinutes();
+  const second = moment.getSeconds();
+  const ms = moment.getMilliseconds();
+
+  if (month === 0 && day === 1 && hour === 0 && minute === 0 && second === 0 && ms === 0) {
+    let diff = year - oy;
+
+    if (diff === 0) {
+      return 25 + Math.floor(Math.log2(totalYears));
+    } else {
+      let level = 25;
+
+      while (diff % 2 === 0) {
+        diff /= 2;
+        level++;
+      }
+      return level;
+    }
+  } else if (day === 1 && hour === 0 && minute === 0 && second === 0 && ms === 0) {
+    return getMonthLevel(month);
+  } else if (hour === 0 && minute === 0 && second === 0 && ms === 0) {
+    return getLevel(year, month, day);
+  } else if (minute === 0 && second === 0 && ms === 0) {
+    if (hour === 12) return 17;
+    else if (hour % 6 === 0) return 16;
+    else if (hour % 3 === 0) return 15;
+    return 14;
+  } else if (second === 0 && ms === 0) {
+    if (minute === 30) return 13;
+    else if (minute % 15 === 0) return 12;
+    else if (minute % 5 === 0) return 11;
+    return 10;
+  } else if (ms === 0) {
+    if (second === 30) return 9;
+    else if (second % 15 === 0) return 8;
+    else if (second % 5 === 0) return 7;
+    return 6;
+  }
+
+  if (ms === 500) return 5;
+  else if (ms % 100 === 0) return 4;
+  else if (ms % 50 === 0) return 3;
+  else if (ms % 10 === 0) return 2;
+  else if (ms % 5 === 0) return 1;
+  return 0;
 }
 
 function travelInAMonth(
@@ -1129,33 +1429,147 @@ export function getIntervalLengths(start: Date, end: Date) {
     has28 = !has29;
   }
 
-  const lengths: number[] = [1, 3, 7];
+  const intervals: number[] = [
+    1, 3, 7
+  ];
+
 
   if ((has28 || has29) && !has30 && !has31) {
-    lengths.push(14)
+    intervals.push(14)
   } else {
-    lengths.push(15);
+    intervals.push(15);
   }
 
   if (has28) {
-    lengths.push(28);
+    intervals.push(28);
   } else if (has29) {
-    lengths.push(29);
+    intervals.push(29);
   } else if (has30) {
-    lengths.push(30);
+    intervals.push(30);
   } else {
-    lengths.push(31);
+    intervals.push(31);
   }
 
   if (has29 && !has28) {
-    lengths.push(91);
-    lengths.push(192);
-    lengths.push(366);
+    intervals.push(91);
+    intervals.push(192);
+    intervals.push(366);
   } else {
-    lengths.push(90);
-    lengths.push(191);
-    lengths.push(365);
+    intervals.push(90);
+    intervals.push(191);
+    intervals.push(365);
   }
 
-  return lengths;
+  return intervals;
+}
+
+// get interval lengths
+export function getIntervalLengths2(start: Date, end: Date) {
+  const startYear = start.getFullYear();
+  const endYear = end.getFullYear();
+  const startMonth = start.getMonth();
+  const endMonth = end.getMonth();
+
+  let has28 = false;
+  let has29 = false;
+  let has30 = false;
+  let has31 = false;
+
+  if (startYear < endYear - 1) {
+    for (let y = startYear; y <= endYear; y++) {
+      if (isLeapYear(y)) has29 = true;
+      else has28 = true;
+    }
+
+    has30 = true;
+    has31 = true;
+  } else if (startYear < endYear) {
+    for (let m = startMonth; m < 12; m++) {
+      if (m === 1) {
+        if (isLeapYear(startYear)) has29 = true;
+        else has28 = true;
+      } else {
+        const days = monthDays[m];
+        if (days === 30) has30 = true;
+        if (days === 31) has31 = true;
+      }
+    }
+
+    for (let m = 0; m <= endMonth; m++) {
+      if (m === 1) {
+        if (isLeapYear(endYear)) has29 = true;
+        else has28 = true;
+      } else {
+        const days = monthDays[m];
+        if (days === 30) has30 = true;
+        if (days === 31) has31 = true;
+      }
+    }
+  } else if (startYear == endYear) {
+    for (let m = startMonth; m <= endMonth; m++) {
+      if (m === 1) {
+        if (isLeapYear(startYear)) has29 = true;
+      } else {
+        const days = monthDays[m];
+        if (days === 30) has30 = true;
+        if (days === 31) has31 = true;
+      }
+    }
+
+    has28 = !has29;
+  }
+
+  const intervals: number[] = [
+    1,
+    5,
+    10,
+    50,
+    100,
+    500,
+    1 * SEC_LEN,
+    5 * SEC_LEN,
+    15 * SEC_LEN,
+    30 * SEC_LEN,
+    1 * MIN_LEN,
+    5 * MIN_LEN,
+    15 * MIN_LEN,
+    30 * MIN_LEN,
+    1 * HOU_LEN,
+    3 * HOU_LEN,
+    6 * HOU_LEN,
+    12 * HOU_LEN,
+    1 * DAY_LEN,
+    3 * DAY_LEN,
+    7 * DAY_LEN
+  ];
+
+  const lengths: number[] = [1, 3, 7];
+
+  if ((has28 || has29) && !has30 && !has31) {
+    intervals.push(14 * DAY_LEN)
+  } else {
+    intervals.push(15 * DAY_LEN);
+  }
+
+  if (has28) {
+    intervals.push(28 * DAY_LEN);
+  } else if (has29) {
+    intervals.push(29 * DAY_LEN);
+  } else if (has30) {
+    intervals.push(30 * DAY_LEN);
+  } else {
+    intervals.push(31 * DAY_LEN);
+  }
+
+  if (has29 && !has28) {
+    intervals.push(91 * DAY_LEN);
+    intervals.push(192 * DAY_LEN);
+    intervals.push(366 * DAY_LEN);
+  } else {
+    intervals.push(90 * DAY_LEN);
+    intervals.push(191 * DAY_LEN);
+    intervals.push(365 * DAY_LEN);
+  }
+
+  return intervals;
 }
