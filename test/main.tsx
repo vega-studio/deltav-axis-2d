@@ -2,8 +2,6 @@ import { Axis } from "src";
 import { AxisDataType } from "src/types";
 import { AutoEasingMethod, createLayer, createView, View2D, EdgeLayer, LabelLayer, ClearFlags, SimpleEventHandler, IMouseInteraction, BasicSurface, Camera2D, BasicCamera2DController, EdgeType, Vec2, InstanceProvider, EdgeInstance, LabelInstance, createFont, FontMapGlyphType } from "deltav";
 import * as dat from "dat.gui";
-import { getIndices2 } from "src/util/dateUtil";
-import moment = require("moment");
 
 let axis1: Axis;
 let axis2: Axis;
@@ -176,7 +174,7 @@ async function start() {
   console.log('READY');
 
   // Make our axis component
-  /*axis1 = new Axis({
+  axis1 = new Axis({
     view: {
       origin: [200, 550],
       size: [1200, 500],
@@ -213,7 +211,7 @@ async function start() {
     numberRange: [-2725120736, -2372919733],
     numberGap: 0.378,
     verticalLayout: false
-  });*/
+  });
 
   axis3 = new Axis({
     view: {

@@ -1,6 +1,6 @@
 import { InstanceProvider, EdgeInstance, LabelInstance, Color, AnchorType } from "deltav";
 import { AxisDataType, Vec2, Vec3, Bucket } from "src/types";
-import { dateLevel, getDayLevel, getMomentLevel, getIntervalLengths, getIndices, getIndices2, getIndicesAtLevel, getIntervalLengths2 } from "src/util/dateUtil";
+import { dateLevel, getMomentLevel, getIntervalLengths, getIndices } from "src/util/dateUtil";
 import moment from 'moment';
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -276,7 +276,7 @@ export class AxisStore {
   }
 
   generateDateInterval() {
-    this.dateIntervalLengths = getIntervalLengths2(this.startDate, this.endDate);
+    this.dateIntervalLengths = getIntervalLengths(this.startDate, this.endDate);
     let level = Math.floor(Math.log2(this.totalYears));
     let daysInAYear = this.dateIntervalLengths[this.dateIntervalLengths.length - 1];
 
@@ -750,7 +750,7 @@ export class AxisStore {
     const ed = moment(this.startDate).add(this.indexRange[1], 'milliseconds').toDate();
 
     const maxLevel = this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0 + 25;
-    const indices = getIndices2(this.startDate, sd, ed, this.totalYears, this.scaleLevel, maxLevel);
+    const indices = getIndices(this.startDate, sd, ed, this.totalYears, this.scaleLevel, maxLevel);
 
     for (let i = 0; i < indices.length; i++) {
       const index = indices[i];
@@ -801,12 +801,9 @@ export class AxisStore {
   }
 
   removeDateBuckets(start: number, end: number, lowerLevel: number, higherLevel?: number) {
-
     const s = moment(this.startDate).add(start, 'milliseconds').toDate();
     const e = moment(this.startDate).add(end, 'milliseconds').toDate();
-
-
-    const indices = getIndices2(this.startDate, s, e, this.totalYears, lowerLevel, higherLevel);
+    const indices = getIndices(this.startDate, s, e, this.totalYears, lowerLevel, higherLevel);
 
     for (let i = 0; i < indices.length; i++) {
       const index = indices[i];
