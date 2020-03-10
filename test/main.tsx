@@ -231,29 +231,12 @@ async function start() {
     tickWidth: 2,
     tickLength: 10,
     type: AxisDataType.DATE,
-    startDate: new Date(2025, 9, 17),
-    endDate: new Date(2027, 9, 17),
+    startDate: new Date(2026, 9, 31),
+    endDate: new Date(2026, 11, 1),
     verticalLayout: false
   });
 
-  const startDate = new Date(2025, 9, 17);
-  const indexs = getIndices2(
-    new Date(2025, 9, 17),
-    new Date(2026, 9, 20, 19, 29, 7),
-    new Date(2026, 9, 22, 9, 9, 36),
-    2,
-    15,
-    19
-  )
-
-  indexs.sort();
-
-  indexs.forEach(index => {
-    console.warn("HHSH", moment(startDate).add(index, 'milliseconds').toDate());
-  })
-
-
-  console.log(surface.providers.labels1 === axis1.store.providers.labels);
+  console.log(axis1 && surface.providers.labels1 === axis1.store.providers.labels);
 }
 
 start();

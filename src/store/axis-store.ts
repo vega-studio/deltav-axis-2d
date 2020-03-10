@@ -379,7 +379,7 @@ export class AxisStore {
     const ms = currentDate.getMilliseconds();
 
     if (month === 0 && day === 1 && hour === 0 && minute === 0 && second === 0 && ms === 0) {
-      return `${year} Year`;
+      return `${year}`;
     } else if (hour === 0 && minute === 0 && second === 0 && ms === 0) {
       return `${monthNames[month]} ${day}`
     } else if (ms === 0) {
@@ -592,6 +592,7 @@ export class AxisStore {
     if (this.type === AxisDataType.NUMBER || this.type === AxisDataType.LABEL) {
       this.layoutLabelOrNumber(alphaScale, lowerScale, higherScale);
     } else if (this.type === AxisDataType.DATE) {
+      console.log("LAYOUT DATE LABELS")
       this.layoutDateLabels(alphaScale, lowerScale, higherScale);
     }
   }
@@ -624,12 +625,19 @@ export class AxisStore {
     this.endDate = typeof endDate === "string" ? new Date(endDate) : endDate;
     this.totalYears = this.endDate.getFullYear() - this.startDate.getFullYear();
 
-    if (this.startDate.getMonth() == 0 && this.startDate.getDate() === 1) {
+    if (
+      this.startDate.getMonth() == 0 &&
+      this.startDate.getDate() === 1 &&
+      this.startDate.getHours() === 0 &&
+      this.startDate.getMinutes() === 0 &&
+      this.startDate.getSeconds() === 0 &&
+      this.startDate.getMilliseconds() === 0
+    ) {
       this.totalYears += 1;
     }
 
     // Update unit number and related
-    this.unitNumber = moment(this.endDate).diff(moment(this.startDate), 'days') + 1;
+    this.unitNumber = moment(this.endDate).diff(moment(this.startDate), 'milliseconds') + 1;
     this.indexRange = [0, this.unitNumber - 1];
     this.unitWidth = this.view.size[0] / this.unitNumber;
     this.unitHeight = this.view.size[1] / this.unitNumber;
@@ -741,7 +749,7 @@ export class AxisStore {
     const sd = moment(this.startDate).add(this.indexRange[0], 'milliseconds').toDate();
     const ed = moment(this.startDate).add(this.indexRange[1], 'milliseconds').toDate();
 
-    const maxLevel = Math.floor(Math.log2(this.totalYears)) + 25;
+    const maxLevel = this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0 + 25;
     const indices = getIndices2(this.startDate, sd, ed, this.totalYears, this.scaleLevel, maxLevel);
 
     for (let i = 0; i < indices.length; i++) {
@@ -768,7 +776,8 @@ export class AxisStore {
     if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
       this.removeLabelOrNumberBuckets(start, end, interval);
     } else {
-      const maxLevel = Math.floor(Math.log2(this.totalYears)) + 25;
+      const maxLevel = this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0 + 25;
+      console.log("REOMVE BUCKETS");
       this.removeDateBuckets(start, end, this.preScaleLevel, maxLevel);
     }
   }
@@ -795,6 +804,7 @@ export class AxisStore {
 
     const s = moment(this.startDate).add(start, 'milliseconds').toDate();
     const e = moment(this.startDate).add(end, 'milliseconds').toDate();
+
 
     const indices = getIndices2(this.startDate, s, e, this.totalYears, lowerLevel, higherLevel);
 
