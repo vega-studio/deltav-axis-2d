@@ -102,13 +102,6 @@ function getIndicesInAMin(
   // const time = new Date(year, month, day, hour, min);
   const baseIndex = moment(min).diff(origin, 'milliseconds');
 
-  if (lowerLevel < 6) {
-    const hl = higherLevel < 6 ? higherLevel : 5;
-    for (let i = s; i <= e; i++) {
-      // getIndicesInASec(origin, year, month, day, hour, min, i, 1, 999, lowerLevel, hl, indices);
-    }
-  }
-
   const ll = lowerLevel >= 6 ? lowerLevel : 6;
 
   for (let l = ll; l <= higherLevel; l++) {
@@ -140,18 +133,7 @@ function getIndicesInAHour(
   higherLevel: number,
   indices: number[]
 ) {
-  /// const time = new Date(year, month, day);
-  // hour.setMinutes(0, 0, 0);
   const baseIndex = moment(hour).diff(origin, 'milliseconds');
-  // console.warn("HOUR", hour, hour.getHours(), moment(hour).isDST(), baseIndex, s, e);
-
-  if (lowerLevel < 10) {
-    const hl = higherLevel < 10 ? higherLevel : 9;
-    for (let i = s; i <= e; i++) {
-      // getIndicesInAMin(origin, year, month, day, hour, i, 0, 59, lowerLevel, hl, indices);
-      indices.push(baseIndex + i * MIN_LEN);
-    }
-  }
 
   const ll = lowerLevel >= 10 ? lowerLevel : 10;
 
@@ -159,7 +141,6 @@ function getIndicesInAHour(
     if (l === 10) {
       for (let i = s; i <= e; i++) {
         if (i % 5 !== 0) indices.push(baseIndex + i * MIN_LEN);
-        // insertAMin(year, month, day, hour, i, baseIndex, indices);
       }
     } else if (l === 11) {
       const start = Math.ceil(s / 5) * 5;
@@ -189,14 +170,6 @@ function getIndicesInADay(
   const hours = moment(day).add(1, 'days').diff(day, 'hours');
   const offset = hours === 24 ? 0 : hours === 25 ? 1 : -1;
   e = Math.min(e, hours - 1);
-
-  if (lowerLevel < 14) {
-    const hl = higherLevel < 14 ? higherLevel : 13;
-    for (let i = s; i <= e; i++) {
-      const hour = moment(day).add(i, 'hours').toDate();
-      getIndicesInAHour(origin, hour, 0, 59, lowerLevel, hl, indices);
-    }
-  }
 
   const ll = lowerLevel >= 14 ? lowerLevel : 14;
 
@@ -228,13 +201,6 @@ function getIndices28(
   higherLevel: number,
   indices: number[]
 ) {
-  if (lowerLevel < 18) {
-    const hl = higherLevel < 18 ? higherLevel : 17;
-    for (let i = s; i <= e; i++) {
-      // getIndicesInADay(origin, year, 1, i, 0, 23, lowerLevel, hl, indices);
-    }
-  }
-
   const monthStartDay = new Date(year, 1, 1);
   const baseIndex = moment(monthStartDay).diff(origin, 'milliseconds');
 
@@ -274,13 +240,6 @@ function getIndices29(
   higherLevel: number,
   indices: number[]
 ) {
-  if (lowerLevel < 18) {
-    const hl = higherLevel < 18 ? higherLevel : 17;
-    for (let i = s; i <= e; i++) {
-      // getIndicesInADay(origin, year, 1, i, 0, 23, lowerLevel, hl, indices);
-    }
-  }
-
   const monthStartDay = new Date(year, 1, 1);
   const baseIndex = moment(monthStartDay).diff(origin, 'milliseconds');
 
@@ -334,13 +293,6 @@ function getIndices30(
   higherLevel: number,
   indices: number[]
 ) {
-  if (lowerLevel < 18) {
-    const hl = higherLevel < 18 ? higherLevel : 17;
-    for (let i = s; i <= e; i++) {
-      // getIndicesInADay(origin, year, month, i, 0, 23, lowerLevel, hl, indices);
-    }
-  }
-
   const monthStartDay = new Date(year, month, 1);
 
   const baseIndex = moment(monthStartDay).diff(origin, 'milliseconds');
@@ -383,13 +335,6 @@ function getIndices31(
   higherLevel: number,
   indices: number[]
 ) {
-  if (lowerLevel < 18) {
-    const hl = higherLevel < 18 ? higherLevel : 17;
-    for (let i = s; i <= e; i++) {
-      // getIndicesInADay(origin, year, month, i, 0, 23, lowerLevel, hl, indices);
-    }
-  }
-
   const monthStartDay = new Date(year, month, 1);
   const baseIndex = moment(monthStartDay).diff(origin, 'milliseconds');
 
@@ -545,11 +490,9 @@ export function getIndicesAtLevel(
 
   // Year interval 2 ^ (n - 25)
   if (level >= 25) {
-    const maxLevel = totalYears >= 1 ? Math.floor(Math.log2(totalYears)) : 0 + 25;
-
+    const maxLevel = (totalYears >= 1 ? Math.floor(Math.log2(totalYears)) : 0) + 25;
     const yearInterval = Math.pow(2, level - 25);
     const baseYear = om == 0 && od == 1 ? oy : oy + 1;
-    // console.warn(`~~~ maxLevel ${maxLevel} ~~~ yearInt ${yearInterval} ~~~ baseYear ${baseYear}`);
 
     if (level === maxLevel) {
       const firstDay = new Date(baseYear, 0, 1);
@@ -745,7 +688,7 @@ export function getIndicesAtLevel(
         endMin = moment(endMin).add(1, 'hours').toDate();
       }
 
-      let len = moment(endMin).diff(startMin, 'minutes');
+      const len = moment(endMin).diff(startMin, 'minutes');
 
       // First minute
       getIndicesInAMin(origin, startMin, ssec, 59, level, level, indices);
@@ -1181,7 +1124,93 @@ export function getIntervalLengths(start: Date, end: Date) {
     7 * DAY_LEN
   ];
 
-  const lengths: number[] = [1, 3, 7];
+  if ((has28 || has29) && !has30 && !has31) {
+    intervals.push(14 * DAY_LEN)
+  } else {
+    intervals.push(15 * DAY_LEN);
+  }
+
+  if (has28) {
+    intervals.push(28 * DAY_LEN);
+  } else if (has29) {
+    intervals.push(29 * DAY_LEN);
+  } else if (has30) {
+    intervals.push(30 * DAY_LEN);
+  } else {
+    intervals.push(31 * DAY_LEN);
+  }
+
+  if (has29 && !has28) {
+    intervals.push(91 * DAY_LEN);
+    intervals.push(192 * DAY_LEN);
+    intervals.push(366 * DAY_LEN);
+  } else {
+    intervals.push(90 * DAY_LEN);
+    intervals.push(191 * DAY_LEN);
+    intervals.push(365 * DAY_LEN);
+  }
+
+  return intervals;
+}
+
+export function getSimpleIntervalLengths(start: Date, end: Date) {
+  const intervals: number[] = [
+    1, 40, 1 * SEC_LEN, 2 * SEC_LEN, 1 * MIN_LEN, 2 * MIN_LEN, 1 * HOU_LEN, 1 * DAY_LEN
+  ];
+
+  const startYear = start.getFullYear();
+  const endYear = end.getFullYear();
+  const startMonth = start.getMonth();
+  const endMonth = end.getMonth();
+
+  let has28 = false;
+  let has29 = false;
+  let has30 = false;
+  let has31 = false;
+
+  if (startYear < endYear - 1) {
+    for (let y = startYear; y <= endYear; y++) {
+      if (isLeapYear(y)) has29 = true;
+      else has28 = true;
+    }
+
+    has30 = true;
+    has31 = true;
+  } else if (startYear < endYear) {
+    for (let m = startMonth; m < 12; m++) {
+      if (m === 1) {
+        if (isLeapYear(startYear)) has29 = true;
+        else has28 = true;
+      } else {
+        const days = monthDays[m];
+        if (days === 30) has30 = true;
+        if (days === 31) has31 = true;
+      }
+    }
+
+    for (let m = 0; m <= endMonth; m++) {
+      if (m === 1) {
+        if (isLeapYear(endYear)) has29 = true;
+        else has28 = true;
+      } else {
+        const days = monthDays[m];
+        if (days === 30) has30 = true;
+        if (days === 31) has31 = true;
+      }
+    }
+  } else if (startYear == endYear) {
+    for (let m = startMonth; m <= endMonth; m++) {
+      if (m === 1) {
+        if (isLeapYear(startYear)) has29 = true;
+      } else {
+        const days = monthDays[m];
+        if (days === 30) has30 = true;
+        if (days === 31) has31 = true;
+      }
+    }
+
+    has28 = !has29;
+  }
 
   if ((has28 || has29) && !has30 && !has31) {
     intervals.push(14 * DAY_LEN)
@@ -1210,4 +1239,481 @@ export function getIntervalLengths(start: Date, end: Date) {
   }
 
   return intervals;
+}
+
+export function getSimpleMomentLevel(origin: Date, moment: Date, totalYears: number) {
+  const oy = origin.getMonth() === 0 && origin.getDate() === 1 ?
+    origin.getFullYear() : origin.getFullYear() + 1;
+
+  const year = moment.getFullYear();
+  const month = moment.getMonth();
+  const day = moment.getDate();
+  const hour = moment.getHours();
+  const minute = moment.getMinutes();
+  const second = moment.getSeconds();
+  const ms = moment.getMilliseconds();
+
+  if (month === 0 && day === 1 && hour === 0 && minute === 0 && second === 0 && ms === 0) {
+    let diff = year - oy;
+
+    if (diff === 0) {
+      return 9 + totalYears >= 1 ? Math.floor(Math.log2(totalYears)) : 0;
+    } else {
+      let level = 9;
+
+      while (diff % 2 === 0) {
+        diff /= 2;
+        level++;
+      }
+      return level;
+    }
+  } else if (day === 1 && hour === 0 && minute === 0 && second === 0 && ms === 0) {
+    return 8;
+  } else if (hour === 0 && minute === 0 && second === 0 && ms === 0) {
+    return 7;
+  } else if (minute === 0 && second === 0 && ms === 0) {
+    return 6;
+  } else if (second === 0 && ms === 0) {
+    if (minute % 2 === 0) return 5;
+    return 4;
+  } else if (ms === 0) {
+    if (second % 2 === 0) return 3;
+    return 2;
+  }
+
+  if (ms % 40 === 0) return 1;
+  return 0;
+}
+
+export function getSimpleIndices(
+  origin: Date,
+  totalYears: number,
+  startDate: Date,
+  endDate: Date,
+  lowerLevel: number,
+  higherLevel: number
+) {
+  const indices: number[] = [];
+
+  for (let level = lowerLevel; level <= higherLevel; level++) {
+    getSimpleIndicesAtLevel(origin, totalYears, startDate, endDate, level, indices);
+  }
+
+  return indices;
+}
+
+function getIndicesOfMonthFirstDay(
+  origin: Date,
+  year: number,
+  startMonth: number,
+  endMonth: number,
+  indices: number[]
+) {
+  startMonth = Math.max(startMonth, 1);
+
+  for (let month = startMonth; month <= endMonth; month++) {
+    const firstDay = new Date(year, month, 1);
+    const index = moment(firstDay).diff(origin, 'milliseconds');
+    indices.push(index);
+  }
+
+}
+
+function getIndicesOfDaysInAMonth(
+  origin: Date,
+  year: number,
+  month: number,
+  startDay: number,
+  endDay: number,
+  indices: number[]
+) {
+  startDay = Math.max(startDay, 2);
+
+  for (let d = startDay; d <= endDay; d++) {
+    const day = new Date(year, month, d);
+    const index = moment(day).diff(origin, 'milliseconds');
+    indices.push(index);
+  }
+}
+
+function getSimpleIndicesInADay(
+  origin: Date,
+  day: Date,
+  startHour: number,
+  endHour: number,
+  indices: number[]
+) {
+  const baseIndex = moment(day).diff(origin, 'milliseconds');
+  const hours = moment(day).add(1, 'days').diff(day, 'hours');
+  // const offset = hours === 24 ? 0 : hours === 25 ? 1 : -1;
+
+  startHour = Math.max(startHour, 1);
+  endHour = Math.min(endHour, hours - 1);
+
+  for (let h = startHour; h <= endHour; h++) {
+    indices.push(baseIndex + h * HOU_LEN);
+  }
+}
+
+function getSimpleIndicesInAnHour(
+  origin: Date,
+  hour: Date,
+  startMinute: number,
+  endMinute: number,
+  level: number,
+  indices: number[]
+) {
+  const baseIndex = moment(hour).diff(origin, 'milliseconds');
+  level = Math.min(Math.max(level, 4), 5);
+
+  if (level === 5) {
+    const start = Math.ceil(startMinute / 2) * 2;
+    const end = Math.floor(endMinute / 2) * 2;
+
+    for (let m = start; m <= end; m += 2) {
+      indices.push(baseIndex + m * MIN_LEN);
+    }
+  } else {
+    const start = Math.floor(startMinute / 2) * 2 + 1;
+    const end = Math.ceil(endMinute / 2) * 2 - 1;
+
+    for (let m = start; m <= end; m += 2) {
+      indices.push(baseIndex + m * MIN_LEN);
+    }
+  }
+}
+
+function getSimpleIndicesInAMinute(
+  origin: Date,
+  minute: Date,
+  startSecond: number,
+  endSecond: number,
+  level: number,
+  indices: number[]
+) {
+  const baseIndex = moment(minute).diff(origin, 'milliseconds');
+  level = Math.min(Math.max(level, 2), 3);
+
+  if (level === 3) {
+    const start = Math.ceil(startSecond / 2) * 2;
+    const end = Math.floor(endSecond / 2) * 2;
+
+    for (let s = start; s <= end; s += 2) {
+      indices.push(baseIndex + s * SEC_LEN);
+    }
+  } else {
+    const start = Math.floor(startSecond / 2) * 2 + 1;
+    const end = Math.ceil(endSecond / 2) * 2 - 1;
+
+    for (let s = start; s <= end; s += 2) {
+      indices.push(baseIndex + s * SEC_LEN);
+    }
+  }
+}
+
+function getSimpleIndicesInASecond(
+  origin: Date,
+  second: Date,
+  startMs: number,
+  endMs: number,
+  level: number,
+  indices: number[]
+) {
+  const baseIndex = moment(second).diff(origin, 'milliseconds');
+  level = Math.min(Math.max(level, 0), 1);
+
+  if (level === 1) {
+    const start = Math.ceil(startMs / 40) * 40;
+    const end = Math.floor(endMs / 40) * 40;
+
+    for (let ms = start; ms <= end; ms += 40) {
+      indices.push(baseIndex + ms);
+    }
+  } else {
+    for (let ms = startMs; ms <= endMs; ms++) {
+      if (ms % 40 !== 0) indices.push(baseIndex + ms);
+    }
+  }
+}
+
+// ms: 1,2 sec: 3, 4, min: 5, 6 hour: 7, month: 8, year: 9 & above
+function getSimpleIndicesAtLevel(
+  origin: Date,
+  totalYears: number,
+  startDate: Date,
+  endDate: Date,
+  level: number,
+  indices: number[]
+) {
+  const oy = origin.getFullYear();
+  const om = origin.getMonth();
+  const od = origin.getDate();
+
+  const sy = startDate.getFullYear();
+  const ey = endDate.getFullYear();
+
+  const sm = startDate.getMonth();
+  const em = endDate.getMonth();
+
+  const sd = startDate.getDate();
+  const ed = endDate.getDate();
+
+  if (level >= 9) {
+    const maxLevel = (totalYears >= 1 ? Math.floor(Math.log2(totalYears)) : 0) + 9;
+    const yearInterval = Math.pow(2, level - 9);
+    const baseYear = om == 0 && od == 1 ? oy : oy + 1;
+
+    if (level === maxLevel) {
+      const firstDay = new Date(baseYear, 0, 1);
+
+      if (moment(firstDay).isBetween(startDate, endDate, null, "[]")) {
+        const index = moment(firstDay).diff(origin, 'milliseconds');
+        indices.push(index);
+      }
+    }
+
+    let year = baseYear + yearInterval;
+
+    while (year <= ey) {
+      const firstDay = new Date(year, 0, 1);
+
+      if (moment(firstDay).isBetween(startDate, endDate, null, "[]")) {
+        const index = moment(firstDay).diff(origin, 'milliseconds');
+        indices.push(index);
+      }
+
+      year += yearInterval * 2;
+    }
+
+  }
+
+  // In a year
+  else if (level === 8) {
+    const atBeginning = moment(startDate).isSame(new Date(sy, sm, 1));
+    const startMonth = atBeginning ? sm : sm + 1;
+
+    if (sy === ey) {
+      getIndicesOfMonthFirstDay(origin, sy, startMonth, em, indices);
+    } else {
+      getIndicesOfMonthFirstDay(origin, sy, startMonth, 11, indices);
+
+      for (let y = sy + 1; y < ey; y++) {
+        getIndicesOfMonthFirstDay(origin, y, 1, 11, indices);
+      }
+
+      getIndicesOfMonthFirstDay(origin, ey, 1, em, indices);
+    }
+
+  }
+
+  // In a month
+  else if (level === 7) {
+    const atBeginning = moment(startDate).isSame(new Date(sy, sm, sd, 0));
+    const startDay = atBeginning ? sd : sd + 1;
+
+    if (sy === ey) {
+      if (sm === em) {
+        getIndicesOfDaysInAMonth(origin, sy, sm, startDay, ed, indices);
+      } else {
+        getIndicesOfDaysInAMonth(origin, sy, sm, startDay, getDays(sy, sm), indices);
+
+        for (let m = sm + 1; m < em; m++) {
+          getIndicesOfDaysInAMonth(origin, sy, m, 2, getDays(sy, m), indices)
+        }
+
+        getIndicesOfDaysInAMonth(origin, sy, em, 2, ed, indices);
+      }
+    } else {
+      getIndicesOfDaysInAMonth(origin, sy, sm, sd, getDays(sy, sm), indices);
+
+      for (let m = sm + 1; m < 12; m++) {
+        getIndicesOfDaysInAMonth(origin, sy, m, 2, getDays(sy, m), indices);
+      }
+
+      for (let y = sy + 1; y < ey; y++) {
+        for (let m = 0; m < 12; m++) {
+          getIndicesOfDaysInAMonth(origin, y, m, 2, getDays(y, m), indices);
+        }
+      }
+
+      for (let m = 0; m < em; m++) {
+        getIndicesOfDaysInAMonth(origin, ey, m, 2, getDays(ey, m), indices);
+      }
+
+      getIndicesOfDaysInAMonth(origin, ey, em, 2, ed, indices);
+    }
+
+  }
+
+  // In a day
+  else if (level === 6) {
+    // start hour or end hour could be at the change point of DST
+    const startDay = new Date(sy, sm, sd);
+    const sh = moment(startDate).diff(startDay, 'hours');
+    const atBeginning = moment(startDate).isSame(moment(startDay).add(sh, 'hours'));
+    const startHour = atBeginning ? sh : sh + 1;
+    const endHour = moment(endDate).diff(new Date(ey, em, ed), 'hours');
+
+    if (sy === ey && sm === em && sd === ed) {
+      getSimpleIndicesInADay(origin, startDay, startHour, endHour, indices);
+    } else {
+      const endDay = new Date(ey, em, ed);
+      const length = moment(endDay).diff(startDay, 'days');
+
+      getSimpleIndicesInADay(origin, startDay, startHour, 24, indices);
+
+      for (let i = 1; i < length; i++) {
+        const day = moment(startDay).add(i, 'days').toDate();
+        getSimpleIndicesInADay(origin, day, 1, 24, indices);
+      }
+
+      getSimpleIndicesInADay(origin, endDay, 1, endHour, indices);
+    }
+  }
+
+  // In an hour
+  else if (level >= 4) {
+    const sh = startDate.getHours();
+    const eh = endDate.getHours();
+    const smin = startDate.getMinutes();
+    const atBeginning = startDate.getMinutes() === 0 && startDate.getSeconds() === 0 && startDate.getMilliseconds() === 0;
+
+    const startMinute = atBeginning ? smin : smin + 1;
+    const endMinute = endDate.getMinutes();
+
+    let startHour = new Date(startDate);
+    startHour.setMinutes(0, 0, 0);
+
+    if (moment(startHour).isDST() && !moment(startDate).isDST()) {
+      startHour = moment(startHour).add(1, 'hours').toDate();
+    }
+
+    if (
+      sy === ey &&
+      sm === em &&
+      sd === ed &&
+      sh === eh &&
+      moment(startDate).isDST() === moment(endDate).isDST()
+    ) {
+      getSimpleIndicesInAnHour(origin, startHour, startMinute, endMinute, level, indices);
+    } else {
+      let endHour = new Date(endDate);
+      endHour.setMinutes(0, 0, 0);
+
+      if (moment(endHour).isDST() && !moment(endDate).isDST()) {
+        endHour = moment(endHour).add(1, 'hours').toDate();
+      }
+
+      const length = moment(endHour).diff(startHour, 'hours');
+
+      getSimpleIndicesInAnHour(origin, startHour, startMinute, 59, level, indices);
+
+      for (let i = 1; i < length; i++) {
+        const hour = moment(startHour).add(i, 'hours').toDate();
+        getSimpleIndicesInAnHour(origin, hour, 1, 59, level, indices);
+      }
+
+      getSimpleIndicesInAnHour(origin, endHour, 1, endMinute, level, indices);
+    }
+  }
+
+  // In an minute
+  else if (level >= 2) {
+    const sh = startDate.getHours();
+    const eh = endDate.getHours();
+
+    const smin = startDate.getMinutes();
+    const emin = endDate.getMinutes();
+
+    const startSecond = startDate.getMilliseconds() === 0 ? startDate.getSeconds() : startDate.getSeconds() + 1;
+    const endSecond = endDate.getSeconds();
+
+    let startMinute = new Date(startDate);
+    startMinute.setSeconds(0, 0);
+
+    if (moment(startMinute).isDST() && !moment(startDate).isDST()) {
+      startMinute = moment(startMinute).add(1, 'hours').toDate();
+    }
+
+    if (
+      sy === ey &&
+      sm === em &&
+      sd === ed &&
+      sh === eh &&
+      smin === emin &&
+      moment(startDate).isDST() === moment(endDate).isDST()
+    ) {
+      getSimpleIndicesInAMinute(origin, startMinute, startSecond, endSecond, level, indices);
+    } else {
+      let endMinute = new Date(endDate);
+      endMinute.setSeconds(0, 0);
+
+      if (moment(endMinute).isDST() && !moment(endDate).isDST()) {
+        endMinute = moment(endMinute).add(1, 'hours').toDate();
+      }
+
+      const length = moment(endMinute).diff(startMinute, 'minutes');
+
+      getSimpleIndicesInAMinute(origin, startMinute, startSecond, 59, level, indices);
+
+      for (let i = 1; i < length; i++) {
+        const minute = moment(startMinute).add(i, 'minutes').toDate();
+        getSimpleIndicesInAMinute(origin, minute, 1, 59, level, indices);
+      }
+
+      getSimpleIndicesInAMinute(origin, endMinute, 1, endSecond, level, indices);
+    }
+  }
+
+  // In a second
+  else if (level >= 0) {
+    const sh = startDate.getHours();
+    const eh = endDate.getHours();
+
+    const smin = startDate.getMinutes();
+    const emin = endDate.getMinutes();
+
+    const ssec = startDate.getSeconds();
+    const esec = endDate.getSeconds();
+
+    const startMs = startDate.getMilliseconds();
+    const endMs = endDate.getMilliseconds();
+
+    let startSecond = new Date(startDate);
+    startSecond.setMilliseconds(0);
+
+    if (moment(startSecond).isDST() && !moment(startDate).isDST()) {
+      startSecond = moment(startSecond).add(1, 'hours').toDate()
+    }
+
+    if (
+      sy === ey &&
+      sm === em &&
+      sd === ed &&
+      sh === eh &&
+      smin === emin &&
+      ssec === esec &&
+      moment(startDate).isDST() === moment(endDate).isDST()
+    ) {
+      getSimpleIndicesInASecond(origin, startSecond, startMs, endMs, level, indices);
+    } else {
+      let endSecond = new Date(endDate);
+      endSecond.setMilliseconds(0);
+
+      if (moment(endSecond).isDST() && !moment(endDate).isDST()) {
+        endSecond = moment(endSecond).add(1, 'hours').toDate()
+      }
+
+      let length = moment(endSecond).diff(startSecond, 'seconds');
+
+      getSimpleIndicesInASecond(origin, startSecond, startMs, 999, level, indices);
+
+      for (let i = 1; i < length; i++) {
+        const second = moment(startSecond).add(i, 'seconds').toDate();
+        getSimpleIndicesInASecond(origin, second, 1, 999, level, indices);
+      }
+
+      getSimpleIndicesInASecond(origin, endSecond, 1, endMs, level, indices);
+    }
+  }
 }

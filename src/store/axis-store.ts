@@ -1,6 +1,14 @@
 import { InstanceProvider, EdgeInstance, LabelInstance, Color, AnchorType } from "deltav";
 import { AxisDataType, Vec2, Vec3, Bucket } from "src/types";
-import { dateLevel, getMomentLevel, getIntervalLengths, getIndices } from "src/util/dateUtil";
+import {
+  dateLevel,
+  getMomentLevel,
+  getIntervalLengths,
+  getIndices,
+  getSimpleIndices,
+  getSimpleIntervalLengths,
+  getSimpleMomentLevel
+} from "src/util/dateUtil";
 import moment from 'moment';
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -34,7 +42,6 @@ export class AxisStore {
   // Layout mode
   verticalLayout: boolean = false;
   axisChanged: boolean = false;
-
   resizeWithWindow: boolean = true;
 
   // data type
@@ -103,7 +110,7 @@ export class AxisStore {
 
   constructor(options: IAxisStoreOptions) {
     this.view = options.view;
-    this.preSetMaxWidth = this.view.size[0] / 20;
+    this.preSetMaxWidth = 10;
     this.preSetMaxHeight = options.labelSize || this.labelSize;
     this.tickWidth = options.tickWidth || this.tickWidth;
     this.tickLength = options.tickLength || this.tickLength;
@@ -276,7 +283,8 @@ export class AxisStore {
   }
 
   generateDateInterval() {
-    this.dateIntervalLengths = getIntervalLengths(this.startDate, this.endDate);
+    // this.dateIntervalLengths = getIntervalLengths(this.startDate, this.endDate);
+    this.dateIntervalLengths = getSimpleIntervalLengths(this.startDate, this.endDate);
     let level = Math.floor(Math.log2(this.totalYears));
     let daysInAYear = this.dateIntervalLengths[this.dateIntervalLengths.length - 1];
 
@@ -498,18 +506,18 @@ export class AxisStore {
             if (label.size[1] > this.maxLabelHeight) {
               this.maxLabelHeight = label.size[1];
               if (this.maxLabelHeight > this.preSetMaxHeight && this.verticalLayout) {
-                this.updateInterval();
-                this.updateIndexRange();
-                this.layoutVertical();
+                //this.updateInterval();
+                //this.updateIndexRange();
+                //this.layoutVertical();
               }
             }
 
             if (label.size[0] > this.maxLabelWidth) {
               this.maxLabelWidth = label.size[0];
               if (this.maxLabelWidth > this.preSetMaxWidth && !this.verticalLayout) {
-                this.updateInterval();
-                this.updateIndexRange();
-                this.layoutHorizon();
+                //this.updateInterval();
+                //this.updateIndexRange();
+                //this.layoutHorizon();
               }
             }
           }
@@ -581,7 +589,7 @@ export class AxisStore {
     } = this;
 
     const curScale = 0.5 * Math.pow(2, scale)
-    const maxBucketWidth = maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
+    const maxBucketWidth = preSetMaxWidth; // maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
 
     const lowerScale = maxBucketWidth / (unitWidth * interval);
     const higherScale = lowerInterval === 0 ?
@@ -749,13 +757,16 @@ export class AxisStore {
     const sd = moment(this.startDate).add(this.indexRange[0], 'milliseconds').toDate();
     const ed = moment(this.startDate).add(this.indexRange[1], 'milliseconds').toDate();
 
-    const maxLevel = this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0 + 25;
-    const indices = getIndices(this.startDate, sd, ed, this.totalYears, this.scaleLevel, maxLevel);
+    //const maxLevel = this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0 + 25;
+    const maxLevel = this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0 + 9;
+    // const indices = getIndices(this.startDate, sd, ed, this.totalYears, this.scaleLevel, maxLevel);
+    const indices = getSimpleIndices(this.startDate, this.totalYears, sd, ed, this.scaleLevel, maxLevel);
 
     for (let i = 0; i < indices.length; i++) {
       const index = indices[i];
       const day = moment(this.startDate).add(index, 'milliseconds').toDate();
-      const level = getMomentLevel(this.startDate, day, this.totalYears);
+      // const level = getMomentLevel(this.startDate, day, this.totalYears);
+      const level = getSimpleMomentLevel(this.startDate, day, this.totalYears);
 
       if (this.verticalLayout) {
         const y = origin[1] - (index + 0.5) * unitH - this.offset;
@@ -776,7 +787,8 @@ export class AxisStore {
     if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
       this.removeLabelOrNumberBuckets(start, end, interval);
     } else {
-      const maxLevel = this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0 + 25;
+      // const maxLevel = this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0 + 25;
+      const maxLevel = this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0 + 9;
       console.log("REOMVE BUCKETS");
       this.removeDateBuckets(start, end, this.preScaleLevel, maxLevel);
     }
@@ -801,9 +813,11 @@ export class AxisStore {
   }
 
   removeDateBuckets(start: number, end: number, lowerLevel: number, higherLevel?: number) {
-    const s = moment(this.startDate).add(start, 'milliseconds').toDate();
-    const e = moment(this.startDate).add(end, 'milliseconds').toDate();
-    const indices = getIndices(this.startDate, s, e, this.totalYears, lowerLevel, higherLevel);
+    const startMoment = moment(this.startDate).add(start, 'milliseconds').toDate();
+    const endMoment = moment(this.startDate).add(end, 'milliseconds').toDate();
+
+    // const indices = getIndices(this.startDate, startMoment, endMoment, this.totalYears, lowerLevel, higherLevel);
+    const indices = getSimpleIndices(this.startDate, this.totalYears, startMoment, endMoment, lowerLevel, higherLevel);
 
     for (let i = 0; i < indices.length; i++) {
       const index = indices[i];
@@ -883,7 +897,7 @@ export class AxisStore {
       }
     } else {
       const unitW = unitWidth * curScale;
-      const maxWidth = maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
+      const maxWidth = preSetMaxWidth; //maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
 
       if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
         if (this.interval * unitW <= maxWidth) {
