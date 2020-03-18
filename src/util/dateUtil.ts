@@ -1212,12 +1212,6 @@ export function getSimpleIntervalLengths(start: Date, end: Date) {
     has28 = !has29;
   }
 
-  if ((has28 || has29) && !has30 && !has31) {
-    intervals.push(14 * DAY_LEN)
-  } else {
-    intervals.push(15 * DAY_LEN);
-  }
-
   if (has28) {
     intervals.push(28 * DAY_LEN);
   } else if (has29) {
@@ -1229,12 +1223,12 @@ export function getSimpleIntervalLengths(start: Date, end: Date) {
   }
 
   if (has29 && !has28) {
-    intervals.push(91 * DAY_LEN);
-    intervals.push(192 * DAY_LEN);
+    //intervals.push(91 * DAY_LEN);
+    //intervals.push(192 * DAY_LEN);
     intervals.push(366 * DAY_LEN);
   } else {
-    intervals.push(90 * DAY_LEN);
-    intervals.push(191 * DAY_LEN);
+    //intervals.push(90 * DAY_LEN);
+    //intervals.push(191 * DAY_LEN);
     intervals.push(365 * DAY_LEN);
   }
 
@@ -1257,7 +1251,7 @@ export function getSimpleMomentLevel(origin: Date, moment: Date, totalYears: num
     let diff = year - oy;
 
     if (diff === 0) {
-      return 9 + totalYears >= 1 ? Math.floor(Math.log2(totalYears)) : 0;
+      return (totalYears >= 1 ? Math.floor(Math.log2(totalYears)) : 0) + 9;
     } else {
       let level = 9;
 
@@ -1461,7 +1455,7 @@ function getSimpleIndicesAtLevel(
   if (level >= 9) {
     const maxLevel = (totalYears >= 1 ? Math.floor(Math.log2(totalYears)) : 0) + 9;
     const yearInterval = Math.pow(2, level - 9);
-    const baseYear = om == 0 && od == 1 ? oy : oy + 1;
+    const baseYear = om == 0 && od == 1 ? oy : oy + 1; /// wrong
 
     if (level === maxLevel) {
       const firstDay = new Date(baseYear, 0, 1);

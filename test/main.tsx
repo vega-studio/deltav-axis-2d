@@ -230,8 +230,8 @@ async function start() {
     tickWidth: 2,
     tickLength: 10,
     type: AxisDataType.DATE,
-    startDate: new Date(2026, 9, 31),
-    endDate: new Date(2026, 11, 1),
+    startDate: new Date(2000, 9, 31),
+    endDate: new Date(2011, 11, 1),
     verticalLayout: false
   });
 
