@@ -1155,7 +1155,7 @@ export function getIntervalLengths(start: Date, end: Date) {
 
 export function getSimpleIntervalLengths(start: Date, end: Date) {
   const intervals: number[] = [
-    1, 40, 1 * SEC_LEN, 2 * SEC_LEN, 1 * MIN_LEN, 2 * MIN_LEN, 1 * HOU_LEN, 1 * DAY_LEN
+    1, 40, 1 * SEC_LEN, 1 * MIN_LEN, 1 * HOU_LEN, 1 * DAY_LEN
   ];
 
   const startYear = start.getFullYear();
@@ -1223,12 +1223,8 @@ export function getSimpleIntervalLengths(start: Date, end: Date) {
   }
 
   if (has29 && !has28) {
-    //intervals.push(91 * DAY_LEN);
-    //intervals.push(192 * DAY_LEN);
     intervals.push(366 * DAY_LEN);
   } else {
-    //intervals.push(90 * DAY_LEN);
-    //intervals.push(191 * DAY_LEN);
     intervals.push(365 * DAY_LEN);
   }
 
@@ -1251,27 +1247,26 @@ export function getSimpleMomentLevel(origin: Date, moment: Date, totalYears: num
     let diff = year - oy;
 
     if (diff === 0) {
-      return (totalYears >= 1 ? Math.floor(Math.log2(totalYears)) : 0) + 9;
+      return (totalYears >= 1 ? Math.floor(Math.log2(totalYears)) : 0) + 7;
     } else {
-      let level = 9;
+      let level = 7;
 
       while (diff % 2 === 0) {
         diff /= 2;
         level++;
       }
+
       return level;
     }
   } else if (day === 1 && hour === 0 && minute === 0 && second === 0 && ms === 0) {
-    return 8;
-  } else if (hour === 0 && minute === 0 && second === 0 && ms === 0) {
-    return 7;
-  } else if (minute === 0 && second === 0 && ms === 0) {
     return 6;
-  } else if (second === 0 && ms === 0) {
-    if (minute % 2 === 0) return 5;
+  } else if (hour === 0 && minute === 0 && second === 0 && ms === 0) {
+    return 5;
+  } else if (minute === 0 && second === 0 && ms === 0) {
     return 4;
+  } else if (second === 0 && ms === 0) {
+    return 3;
   } else if (ms === 0) {
-    if (second % 2 === 0) return 3;
     return 2;
   }
 
@@ -1360,7 +1355,7 @@ function getSimpleIndicesInAnHour(
   const baseIndex = moment(hour).diff(origin, 'milliseconds');
   level = Math.min(Math.max(level, 4), 5);
 
-  if (level === 5) {
+  /*if (level === 5) {
     const start = Math.ceil(startMinute / 2) * 2;
     const end = Math.floor(endMinute / 2) * 2;
 
@@ -1370,10 +1365,10 @@ function getSimpleIndicesInAnHour(
   } else {
     const start = Math.floor(startMinute / 2) * 2 + 1;
     const end = Math.ceil(endMinute / 2) * 2 - 1;
+  }*/
 
-    for (let m = start; m <= end; m += 2) {
-      indices.push(baseIndex + m * MIN_LEN);
-    }
+  for (let m = startMinute; m <= endMinute; m += 1) {
+    indices.push(baseIndex + m * MIN_LEN);
   }
 }
 
@@ -1386,9 +1381,9 @@ function getSimpleIndicesInAMinute(
   indices: number[]
 ) {
   const baseIndex = moment(minute).diff(origin, 'milliseconds');
-  level = Math.min(Math.max(level, 2), 3);
+  level = Math.min(Math.max(level, 2), 2);
 
-  if (level === 3) {
+  /*if (level === 3) {
     const start = Math.ceil(startSecond / 2) * 2;
     const end = Math.floor(endSecond / 2) * 2;
 
@@ -1402,6 +1397,10 @@ function getSimpleIndicesInAMinute(
     for (let s = start; s <= end; s += 2) {
       indices.push(baseIndex + s * SEC_LEN);
     }
+  }*/
+
+  for (let s = startSecond; s <= endSecond; s += 1) {
+    indices.push(baseIndex + s * SEC_LEN);
   }
 }
 
@@ -1452,9 +1451,9 @@ function getSimpleIndicesAtLevel(
   const sd = startDate.getDate();
   const ed = endDate.getDate();
 
-  if (level >= 9) {
-    const maxLevel = (totalYears >= 1 ? Math.floor(Math.log2(totalYears)) : 0) + 9;
-    const yearInterval = Math.pow(2, level - 9);
+  if (level >= 7) {
+    const maxLevel = (totalYears >= 1 ? Math.floor(Math.log2(totalYears)) : 0) + 7;
+    const yearInterval = Math.pow(2, level - 7);
     const baseYear = om == 0 && od == 1 ? oy : oy + 1; /// wrong
 
     if (level === maxLevel) {
@@ -1482,7 +1481,7 @@ function getSimpleIndicesAtLevel(
   }
 
   // In a year
-  else if (level === 8) {
+  else if (level === 6) {
     const atBeginning = moment(startDate).isSame(new Date(sy, sm, 1));
     const startMonth = atBeginning ? sm : sm + 1;
 
@@ -1501,7 +1500,7 @@ function getSimpleIndicesAtLevel(
   }
 
   // In a month
-  else if (level === 7) {
+  else if (level === 5) {
     const atBeginning = moment(startDate).isSame(new Date(sy, sm, sd, 0));
     const startDay = atBeginning ? sd : sd + 1;
 
@@ -1540,7 +1539,7 @@ function getSimpleIndicesAtLevel(
   }
 
   // In a day
-  else if (level === 6) {
+  else if (level === 4) {
     // start hour or end hour could be at the change point of DST
     const startDay = new Date(sy, sm, sd);
     const sh = moment(startDate).diff(startDay, 'hours');
@@ -1566,7 +1565,7 @@ function getSimpleIndicesAtLevel(
   }
 
   // In an hour
-  else if (level >= 4) {
+  else if (level >= 3) {
     const sh = startDate.getHours();
     const eh = endDate.getHours();
     const smin = startDate.getMinutes();
