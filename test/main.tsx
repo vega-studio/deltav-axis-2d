@@ -175,7 +175,7 @@ async function start() {
   console.log('READY');
 
   // Make our axis component
-  /*axis1 = new Axis({
+  axis1 = new Axis({
     view: {
       origin: [200, 550],
       size: [1200, 500],
@@ -212,7 +212,7 @@ async function start() {
     numberRange: [-2725120736, -2372919733],
     numberGap: 0.378,
     verticalLayout: false
-  });*/
+  });
 
   axis3 = new Axis({
     view: {

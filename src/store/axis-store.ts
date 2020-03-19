@@ -94,35 +94,25 @@ export class AxisStore {
   windowWidth: number = 0;
   windowHeight: number = 0;
 
+  firstRender: boolean = false;
+
   // Interval info
   interval: number = 1;
   lowerInterval: number = 0;
-
   higherInterval: number = 2; // For labels and number
   preInterval: number = 1; // For labels and numbers
-
   labelInterval: number = 1;
   lowerLabelInterval: number = 0;
-
   tickInterval: number = 1;
   lowerTickInterval: number = 0;
 
-  scaleLevel: number = 0;
-  preScaleLevel: number = 0;
-
   labelScaleLevel: number = 0;
   preLabelScaleLevel: number = 0;
-
   tickScaleLevel: number = 0;
   preTickScaleLevel: number = 0;
-
-  dateIntervalLengths: number[];
-
   labelIntervalLengths: number[];
   tickIntervalLengths: number[];
-
   indexRange: Vec2 = [-1, -1];
-
   bucketMap: Map<number, Bucket> = new Map<number, Bucket>();
   auxLines: EdgeInstance[] = [];
   providers = {
@@ -132,8 +122,6 @@ export class AxisStore {
 
   constructor(options: IAxisStoreOptions) {
     this.view = options.view;
-    this.preSetMaxWidth = 20;
-    this.preSetMaxHeight = options.labelSize || this.labelSize;
     this.tickWidth = options.tickWidth || this.tickWidth;
     this.tickLength = options.tickLength || this.tickLength;
     this.labelSize = options.labelSize || this.labelSize;
@@ -141,26 +129,29 @@ export class AxisStore {
     this.labelPadding = options.labelPadding || this.labelPadding;
     this.maxLabelLengh = options.maxLabelLength || this.maxLabelLengh;
     this.type = options.type;
-
-    if (this.type === AxisDataType.DATE) {
-      if (options.startDate) {
-        this.startDate = typeof options.startDate === "string" ?
-          new Date(options.startDate) : options.startDate;
-      }
-
-      if (options.endDate) {
-        this.endDate = typeof options.endDate === "string" ?
-          new Date(options.endDate) : options.endDate;
-      }
-    } else if (this.type === AxisDataType.NUMBER) {
-      this.numberRange = options.numberRange || this.numberRange;
-      this.numberGap = options.numberGap || this.numberGap;
-    }
-
     this.verticalLayout = options.verticalLayout === undefined ? this.verticalLayout : options.verticalLayout;
     Object.assign(this.providers, options.providers);
     this.initType(options);
     this.init();
+    this.firstRender = false;
+  }
+
+  getPreSetWidth() {
+    if (this.type === AxisDataType.LABEL) {
+      let maxLength = 0;
+      this.labels.forEach(label => maxLength = Math.max(maxLength, label.length));
+      return maxLength * this.labelSize / 2;
+    } else if (this.type === AxisDataType.NUMBER) {
+      const startString = this.numberRange[0].toFixed(this.decimalLength);
+      const endString = this.numberRange[1].toFixed(this.decimalLength);
+      return Math.max(startString.length, endString.length) * this.labelSize / 2;
+    } else if (this.type === AxisDataType.DATE) {
+      return 4 * this.labelSize;
+    }
+  }
+
+  getPreSetHeight() {
+    return this.labelSize;
   }
 
   drawAuxilaryLines() {
@@ -217,6 +208,9 @@ export class AxisStore {
         this.auxLines[1].start = [origin[0] + size[0], origin[1]];
         this.auxLines[1].end = [origin[0] + size[0], origin[1] - 40];
       }
+
+      this.providers.ticks.add(this.auxLines[0]);
+      this.providers.ticks.add(this.auxLines[1]);
     }
   }
 
@@ -232,7 +226,6 @@ export class AxisStore {
 
     this.windowWidth = window.innerWidth;
     this.windowHeight = window.innerHeight;
-
     this.drawAuxilaryLines();
   }
 
@@ -255,8 +248,8 @@ export class AxisStore {
           return;
         }
 
-        this.numberRange = options.numberRange;
-        this.numberGap = options.numberGap;
+        this.numberRange = options.numberRange || this.numberRange;
+        this.numberGap = options.numberGap || this.numberGap;
         this.unitNumber = Math.floor((this.numberRange[1] - this.numberRange[0]) / this.numberGap) + 1;
         break;
       case AxisDataType.DATE:
@@ -270,7 +263,6 @@ export class AxisStore {
         this.startDate = typeof startDate === "string" ? new Date(startDate) : startDate;
         this.endDate = typeof endDate === "string" ? new Date(endDate) : endDate;
         this.unitNumber = moment(this.endDate).diff(moment(this.startDate), 'milliseconds') + 1;
-
         this.totalYears = this.endDate.getFullYear() - this.startDate.getFullYear();
 
         if (this.startDate.getMonth() == 0 && this.startDate.getDate() === 1) {
@@ -280,6 +272,8 @@ export class AxisStore {
         this.generateDateInterval();
     }
 
+    this.preSetMaxWidth = this.getPreSetWidth();
+    this.preSetMaxHeight = this.getPreSetHeight();
     this.unitWidth = this.view.size[0] / this.unitNumber;
     this.unitHeight = this.view.size[1] / this.unitNumber;
     this.indexRange = [0, this.unitNumber - 1];
@@ -305,22 +299,17 @@ export class AxisStore {
   }
 
   generateDateInterval() {
-    // this.dateIntervalLengths = getIntervalLengths(this.startDate, this.endDate);
-    this.dateIntervalLengths = getSimpleIntervalLengths(this.startDate, this.endDate);
     this.tickIntervalLengths = getSimpleIntervalLengths(this.startDate, this.endDate);
     this.labelIntervalLengths = getSimpleIntervalLengths(this.startDate, this.endDate);
 
     let level = Math.floor(Math.log2(this.totalYears));
-    let daysInAYear = this.dateIntervalLengths[this.dateIntervalLengths.length - 1];
     let daysInAYearTick = this.tickIntervalLengths[this.tickIntervalLengths.length - 1];
     let daysInAYearLabel = this.labelIntervalLengths[this.labelIntervalLengths.length - 1];
 
     while (level > 0) {
-      daysInAYear *= 2;
       daysInAYearTick *= 2;
       daysInAYearLabel *= 2;
 
-      this.dateIntervalLengths.push(daysInAYear);
       this.tickIntervalLengths.push(daysInAYearTick);
       this.labelIntervalLengths.push(daysInAYearLabel);
       level--;
@@ -331,18 +320,10 @@ export class AxisStore {
     this.verticalLayout = !this.verticalLayout;
     this.removeAll();
     this.initChartMetrics();
-    this.scaleLevel = 0;
-    this.labelScaleLevel = 0;
-    this.tickScaleLevel = 0;
-    this.maxLabelWidth = 0;
-    this.maxLabelHeight = 0;
     this.updateInterval();
     this.indexRange = [0, this.unitNumber - 1];
     this.drawAuxilaryLines();
-
-    setTimeout(() => {
-      this.layoutLabels();
-    }, 200);
+    this.layoutLabels();
   }
 
   removeAll() {
@@ -457,7 +438,7 @@ export class AxisStore {
         padding,
         type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
       },
-      color: [this.labelColor[0], this.labelColor[1], this.labelColor[2], 0],
+      color: [this.labelColor[0], this.labelColor[1], this.labelColor[2], alpha],
       fontSize: this.labelSize,
       origin: position,
       text,
@@ -473,7 +454,7 @@ export class AxisStore {
 
         if (label.size[0] > this.maxLabelWidth) {
           this.maxLabelWidth = label.size[0];
-
+          if (this.type === AxisDataType.DATE) console.warn("Date", label.text, label.size[0]);
           if (this.maxLabelWidth > this.preSetMaxWidth && !this.verticalLayout) {
             this.updateInterval();
             this.updateIndexRange();
@@ -494,7 +475,6 @@ export class AxisStore {
       this.labelColor[2],
       alpha
     ];
-
     label.anchor = {
       padding,
       type: this.verticalLayout ? AnchorType.MiddleRight : AnchorType.TopMiddle
@@ -513,8 +493,8 @@ export class AxisStore {
         [position[0] - tickLength, position[1]] :
         [position[0], position[1] + tickLength],
       thickness: [tickWidth, tickWidth],
-      startColor: [1, 1, 1, 0],
-      endColor: [1, 1, 1, 0]
+      startColor: [1, 1, 1, alpha],
+      endColor: [1, 1, 1, alpha]
     });
 
     return tick;
@@ -535,7 +515,6 @@ export class AxisStore {
       tick.startColor[2],
       alpha
     ];
-
     tick.endColor = [
       tick.endColor[0],
       tick.endColor[1],
@@ -547,10 +526,9 @@ export class AxisStore {
   setBucket(index: number, position: Vec2, alpha: number) {
     const {
       labelPadding,
-      labelSize,
     } = this;
 
-    const labelAlpha = alpha;// > 0.4 ? (alpha - 0.4) * 5 / 3 : 0;
+    const labelAlpha = alpha > 0.4 ? (alpha - 0.4) * 5 / 3 : 0;
     const tickAlpha = alpha;
 
     const inViewRange = this.verticalLayout ?
@@ -563,11 +541,11 @@ export class AxisStore {
         const bucket = this.bucketMap.get(index);
 
         if (bucket.label1) {
-          this.updateLabel(bucket.label1, position, alpha, labelPadding);
+          this.updateLabel(bucket.label1, position, labelAlpha, labelPadding);
         }
 
         if (bucket.tick) {
-          this.updateTick(bucket.tick, position, alpha);
+          this.updateTick(bucket.tick, position, tickAlpha);
         }
 
         if (!bucket.displayLabel) {
@@ -581,8 +559,8 @@ export class AxisStore {
         }
       } else {
         const text = this.getLabelText(index);
-        const label1 = this.createNewLabel(text, position, alpha, labelPadding);
-        const tick = this.createTick(position, alpha);
+        const label1 = this.createNewLabel(text, position, labelAlpha, labelPadding);
+        const tick = this.createTick(position, tickAlpha);
         const bucket: Bucket = { label1, tick, displayLabel: true, displayTick: true };
         this.bucketMap.set(index, bucket);
         this.providers.labels.add(bucket.label1);
@@ -606,7 +584,7 @@ export class AxisStore {
     }
   }
 
-  setBucketLabel(index: number, position: Vec2, alpha: number) {
+  setDateLabel(index: number, position: Vec2, alpha: number) {
     const {
       labelPadding,
       labelSize
@@ -630,7 +608,8 @@ export class AxisStore {
           this.updateLabel(bucket.label1, position, alpha, labelPadding);
         } else {
           const text = this.getLabelText(index);
-          bucket.label1 = this.createNewLabel(text, position, alpha, labelPadding);
+          const labelAlpha = this.firstRender ? 0 : alpha;
+          bucket.label1 = this.createNewLabel(text, position, labelAlpha, labelPadding);
         }
 
         if (this.type === AxisDataType.DATE && !this.verticalLayout) {
@@ -638,7 +617,8 @@ export class AxisStore {
             this.updateLabel(bucket.label2, position, alpha, labelPadding + labelSize);
           } else if (!atStartMoment) {
             const text = this.getDateLabel2(index);
-            bucket.label2 = this.createNewLabel(text, position, alpha, labelPadding + labelSize)
+            const labelAlpha = this.firstRender ? 0 : alpha;
+            bucket.label2 = this.createNewLabel(text, position, labelAlpha, labelPadding + labelSize)
           }
         }
 
@@ -649,17 +629,16 @@ export class AxisStore {
         }
       } else {
         const text = this.getLabelText(index);
-
-        const label1 = this.createNewLabel(text, position, alpha, labelPadding);
-
-        // const day = moment(this.startDate).add(index, 'milliseconds').toDate();
+        const labelAlpha = this.firstRender ? 0 : alpha;
+        const label1 = this.createNewLabel(text, position, labelAlpha, labelPadding);
 
         if (
           this.type === AxisDataType.DATE &&
           !this.verticalLayout &&
           !atStartMoment
         ) {
-          const label2 = this.createNewLabel(text, position, alpha, labelPadding + labelSize);
+          const labelAlpha = this.firstRender ? 0 : alpha;
+          const label2 = this.createNewLabel(text, position, labelAlpha, labelPadding + labelSize);
 
           const bucket: Bucket = { label1, label2, displayLabel: true, displayTick: false };
           this.bucketMap.set(index, bucket);
@@ -684,7 +663,7 @@ export class AxisStore {
     }
   }
 
-  setBucketTick(index: number, position: Vec2, alpha: number) {
+  setDateTick(index: number, position: Vec2, alpha: number) {
     const inViewRange = this.verticalLayout ?
       window.innerHeight - position[1] >= this.viewRange[0] && window.innerHeight - position[1] <= this.viewRange[1] :
       position[0] >= this.viewRange[0] && position[0] <= this.viewRange[1];
@@ -697,7 +676,8 @@ export class AxisStore {
         if (bucket.tick) {
           this.updateTick(bucket.tick, position, alpha);
         } else {
-          bucket.tick = this.createTick(position, alpha);
+          const tickAlpha = this.firstRender ? 0 : alpha;
+          bucket.tick = this.createTick(position, tickAlpha);
         }
 
         if (!bucket.displayTick) {
@@ -705,7 +685,8 @@ export class AxisStore {
           this.providers.ticks.add(bucket.tick);
         }
       } else {
-        const tick = this.createTick(position, alpha);
+        const tickAlpha = this.firstRender ? 0 : alpha;
+        const tick = this.createTick(position, tickAlpha);
         const bucket: Bucket = { tick, displayLabel: false, displayTick: true };
         this.bucketMap.set(index, bucket);
         this.providers.ticks.add(bucket.tick);
@@ -826,38 +807,24 @@ export class AxisStore {
     this.view = view;
     this.unitWidth = this.view.size[0] / this.unitNumber;
     this.unitHeight = this.view.size[1] / this.unitNumber;
-
     this.higherInterval = 2;
     this.preInterval = 1;
-
     this.interval = 1;
     this.lowerInterval = 0;
-
     this.labelInterval = 1;
     this.lowerLabelInterval = 0;
     this.tickInterval = 1;
     this.lowerTickInterval = 0;
-
-
-    this.scaleLevel = 0;
-    this.preScaleLevel = 0;
-
     this.labelScaleLevel = 0;
     this.preLabelScaleLevel = 0;
-
     this.tickScaleLevel = 0;
     this.preTickScaleLevel = 0;
-
     this.indexRange = [0, this.unitNumber - 1];
     this.removeAll();
     this.initChartMetrics();
     this.updateInterval();
     this.drawAuxilaryLines();
-
-    setTimeout(() => {
-      this.layoutLabels();
-    }, 1);
-
+    this.layoutLabels();
   }
 
   setDateRange(startDate: string | Date, endDate: string | Date) {
@@ -882,23 +849,17 @@ export class AxisStore {
     this.indexRange = [0, this.unitNumber - 1];
     this.unitWidth = this.view.size[0] / this.unitNumber;
     this.unitHeight = this.view.size[1] / this.unitNumber;
-
     this.maxLabelWidth = 0;
     this.maxLabelHeight = 0;
-    this.scaleLevel = 0;
-    this.preScaleLevel = 0;
     this.labelScaleLevel = 0;
     this.preLabelScaleLevel = 0;
     this.tickScaleLevel = 0;
     this.preTickScaleLevel = 0;
-
     this.removeAll();
     this.initChartMetrics();
     this.updateInterval();
-
-    setTimeout(() => {
-      this.layoutLabels();
-    }, 1);
+    this.drawAuxilaryLines();
+    this.layoutLabels();
   }
 
   setNumberRange(start: number, end: number) {
@@ -909,10 +870,9 @@ export class AxisStore {
     this.unitHeight = this.view.size[1] / this.unitNumber;
     this.maxLabelWidth = 0;
     this.maxLabelHeight = 0;
-
     this.removeAll();
     this.updateInterval();
-
+    this.drawAuxilaryLines();
     setTimeout(() => {
       this.layoutLabels();
     }, 1);
@@ -940,6 +900,7 @@ export class AxisStore {
         let labelAlpha = alpha;
         const y = origin[1] - (i + 0.5) * unitH - this.offset;
         if (i % higherInterval === 0) labelAlpha = 1;
+        if (this.firstRender) labelAlpha = 0;
         this.setBucket(i, [origin[0], y], labelAlpha);
       }
     } else {
@@ -949,6 +910,7 @@ export class AxisStore {
         let labelAlpha = alpha;
         const x = origin[0] + (i + 0.5) * unitW + this.offset;
         if (i % higherInterval === 0) labelAlpha = 1;
+        if (this.firstRender) labelAlpha = 0;
         this.setBucket(i, [x, origin[1]], labelAlpha);
       }
     }
@@ -966,15 +928,14 @@ export class AxisStore {
     const unitH = unitHeight * curScale;
     const unitW = unitWidth * curScale;
     const origin = view.origin;
-
     const sd = moment(this.startDate).add(this.indexRange[0], 'milliseconds').toDate();
     const ed = moment(this.startDate).add(this.indexRange[1], 'milliseconds').toDate();
 
     // Ticks
-    //const maxLevel = this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0 + 25;
     const maxLevel = (this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0) + 7;
     const tickIndices = getSimpleIndices(this.startDate, this.totalYears, sd, ed, this.tickScaleLevel, maxLevel);
-    console.warn("length is ", tickIndices.length);
+
+    // Set Ticks
     for (let i = 0; i < tickIndices.length; i++) {
       const index = tickIndices[i];
       const day = moment(this.startDate).add(index, 'milliseconds').toDate();
@@ -984,16 +945,16 @@ export class AxisStore {
         const y = origin[1] - (index + 0.5) * unitH - this.offset;
         let alpha = tickAlpha;
         if (level >= this.tickScaleLevel + 1) alpha = 1;
-        this.setBucketTick(index, [origin[0], y], alpha);
+        this.setDateTick(index, [origin[0], y], alpha);
       } else {
         const x = origin[0] + (index + 0.5) * unitW + this.offset;
         let alpha = tickAlpha;
         if (level >= this.tickScaleLevel + 1) alpha = 1;
-        this.setBucketTick(index, [x, origin[1]], alpha);
+        this.setDateTick(index, [x, origin[1]], alpha);
       }
     }
 
-    // labels
+    // Set labels
     const labelMaxLevel = (this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0) + 7;
     const labelIndices = getSimpleIndices(this.startDate, this.totalYears, sd, ed, this.labelScaleLevel, labelMaxLevel);
 
@@ -1006,12 +967,12 @@ export class AxisStore {
         const y = origin[1] - (index + 0.5) * unitH - this.offset;
         let alpha = labelAlpha;// > 0.8 ? (labelAlpha - 0.8) * 5 : 0;
         if (level >= this.labelScaleLevel + 1) alpha = 1;
-        this.setBucketLabel(index, [origin[0], y], alpha);
+        this.setDateLabel(index, [origin[0], y], alpha);
       } else {
         const x = origin[0] + (index + 0.5) * unitW + this.offset;
         let alpha = labelAlpha;// > 0.8 ? (labelAlpha - 0.8) * 5 : 0;
         if (level >= this.labelScaleLevel + 1) alpha = 1;
-        this.setBucketLabel(index, [x, origin[1]], alpha);
+        this.setDateLabel(index, [x, origin[1]], alpha);
       }
     }
   }
@@ -1020,7 +981,6 @@ export class AxisStore {
     if (this.type === AxisDataType.LABEL || this.type === AxisDataType.NUMBER) {
       this.removeLabelOrNumberBuckets(start, end, this.preInterval);
     } else {
-      // const maxLevel = this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0 + 25;
       const maxLevel = (this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0) + 7;
       this.removeDateLabels(start, end, this.preLabelScaleLevel, maxLevel);
       this.removeDateTicks(start, end, this.preTickScaleLevel, maxLevel);
@@ -1052,8 +1012,6 @@ export class AxisStore {
   removeDateBuckets(start: number, end: number, lowerLevel: number, higherLevel?: number) {
     const startMoment = moment(this.startDate).add(start, 'milliseconds').toDate();
     const endMoment = moment(this.startDate).add(end, 'milliseconds').toDate();
-
-    // const indices = getIndices(this.startDate, startMoment, endMoment, this.totalYears, lowerLevel, higherLevel);
     const indices = getSimpleIndices(this.startDate, this.totalYears, startMoment, endMoment, lowerLevel, higherLevel);
 
     for (let i = 0; i < indices.length; i++) {
@@ -1080,8 +1038,6 @@ export class AxisStore {
   removeDateLabels(start: number, end: number, lowerLevel: number, higherLevel?: number) {
     const startMoment = moment(this.startDate).add(start, 'milliseconds').toDate();
     const endMoment = moment(this.startDate).add(end, 'milliseconds').toDate();
-
-    // const indices = getIndices(this.startDate, startMoment, endMoment, this.totalYears, lowerLevel, higherLevel);
     const indices = getSimpleIndices(this.startDate, this.totalYears, startMoment, endMoment, lowerLevel, higherLevel);
 
     for (let i = 0; i < indices.length; i++) {
@@ -1096,15 +1052,12 @@ export class AxisStore {
           if (bucket.label2) this.providers.labels.remove(bucket.label2);
         }
       }
-
     }
   }
 
   removeDateTicks(start: number, end: number, lowerLevel: number, higherLevel?: number) {
     const startMoment = moment(this.startDate).add(start, 'milliseconds').toDate();
     const endMoment = moment(this.startDate).add(end, 'milliseconds').toDate();
-
-    // const indices = getIndices(this.startDate, startMoment, endMoment, this.totalYears, lowerLevel, higherLevel);
     const indices = getSimpleIndices(this.startDate, this.totalYears, startMoment, endMoment, lowerLevel, higherLevel);
 
     for (let i = 0; i < indices.length; i++) {
@@ -1187,15 +1140,10 @@ export class AxisStore {
     const {
       scale,
       unitWidth,
-      unitHeight,
-      maxLabelHeight,
-      maxLabelWidth,
-      preSetMaxWidth,
-      preSetMaxHeight
+      unitHeight
     } = this;
 
     this.preInterval = this.interval;
-    this.preScaleLevel = this.scaleLevel;
     this.preTickScaleLevel = this.tickScaleLevel;
     this.preLabelScaleLevel = this.labelScaleLevel;
     const curScale = 0.5 * Math.pow(2, scale);
@@ -1204,7 +1152,7 @@ export class AxisStore {
       const unitH = unitHeight * curScale;
 
       // Date label
-      const labelMaxHeight = this.tickStartHeight; // maxLabelHeight === 0 ? preSetMaxHeight : maxLabelHeight;
+      const labelMaxHeight = this.tickStartHeight;
       this.labelInterval = this.labelIntervalLengths[this.labelScaleLevel];
 
       if (this.labelInterval * unitH <= labelMaxHeight) {
@@ -1258,7 +1206,7 @@ export class AxisStore {
       const unitW = unitWidth * curScale;
 
       // Update date level
-      const labelMaxWidth = this.tickStartWidth;//maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
+      const labelMaxWidth = this.tickStartWidth;
       this.labelInterval = this.labelIntervalLengths[this.labelScaleLevel];
 
       if (this.labelInterval * unitW <= labelMaxWidth) {
