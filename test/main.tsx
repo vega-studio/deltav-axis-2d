@@ -1,12 +1,12 @@
-import { Axis } from "src";
+import { Axis, LabelAxis, NumberAxis, DateAxis } from "src";
 import { AxisDataType } from "src/types";
 import { AutoEasingMethod, createLayer, createView, View2D, EdgeLayer, LabelLayer, ClearFlags, SimpleEventHandler, IMouseInteraction, BasicSurface, Camera2D, BasicCamera2DController, EdgeType, Vec2, InstanceProvider, EdgeInstance, LabelInstance, createFont, FontMapGlyphType } from "deltav";
 import * as dat from "dat.gui";
 import moment = require("moment");
 
-let axis1: Axis;
-let axis2: Axis;
-let axis3: Axis;
+let axis1: LabelAxis;
+let axis2: NumberAxis;
+let axis3: DateAxis;
 
 const parameters = {
   toggleLayout: () => {
@@ -31,8 +31,8 @@ const parameters = {
     });
   },
   setDateRange: () => {
-    if (axis2) axis2.store.setNumberRange(-20, 120);
-    if (axis3) axis3.store.setDateRange(new Date(2019, 0, 8), new Date(2020, 7, 10));
+    if (axis2) axis2.store.setRange(-20, 120);
+    if (axis3) axis3.store.setRange(new Date(2019, 0, 8), new Date(2020, 7, 10));
   }
 }
 
@@ -175,7 +175,7 @@ async function start() {
   console.log('READY');
 
   // Make our axis component
-  axis1 = new Axis({
+  axis1 = new LabelAxis({
     view: {
       origin: [200, 550],
       size: [1200, 500],
@@ -188,13 +188,13 @@ async function start() {
     labelColor: [1, 0.5, 0, 1],
     labelSize: 22,
     labelPadding: 15,
+    maxLabelLength: 10,
     tickWidth: 2,
     tickLength: 10,
-    type: AxisDataType.LABEL,
     verticalLayout: false
   });
 
-  axis2 = new Axis({
+  axis2 = new NumberAxis({
     view: {
       origin: [420, 700],
       size: [1200, 500],
@@ -208,18 +208,16 @@ async function start() {
     labelPadding: 15,
     tickWidth: 2,
     tickLength: 10,
-    type: AxisDataType.NUMBER,
     numberRange: [-2725120736, -2372919733],
     numberGap: 0.378,
     verticalLayout: false
   });
 
-  axis3 = new Axis({
+  axis3 = new DateAxis({
     view: {
       origin: [640, 850],
       size: [1200, 500],
     },
-    labels: names,
     providers: {
       ticks: surface.providers.ticks3,
       labels: surface.providers.labels3
@@ -229,9 +227,8 @@ async function start() {
     labelPadding: 15,
     tickWidth: 2,
     tickLength: 10,
-    type: AxisDataType.DATE,
-    startDate: new Date(2000, 9, 31),
-    endDate: new Date(2011, 11, 1),
+    startDate: new Date(2019, 6, 9, 21, 0, 1, 1),
+    endDate: new Date(2029, 6, 10, 21, 59, 0),
     verticalLayout: false
   });
 
