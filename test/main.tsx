@@ -191,7 +191,21 @@ async function start() {
     maxLabelLength: 10,
     tickWidth: 2,
     tickLength: 10,
-    verticalLayout: false
+    verticalLayout: false,
+    displayRangeLabels: true,
+    onDisplayRange: (range: [string, string]) => {
+      return [range[0].substring(0, 1), "how"]
+    },
+    onMainLabelInstance: (label: LabelInstance) => {
+      label.text = "hello";
+      label.fontSize = 30;
+      //label.origin = [label.origin[0], label.origin[1] + 10];
+      //label.color = [Math.random(), Math.random(), Math.random(), 1]
+    },
+    onTickInstance: (tick: EdgeInstance) => {
+      tick.setColor([Math.random(), Math.random(), Math.random(), 1]);
+      tick.setEdgeThickness(50);
+    }
   });
 
   axis2 = new NumberAxis({
@@ -207,10 +221,16 @@ async function start() {
     labelSize: 20,
     labelPadding: 15,
     tickWidth: 2,
-    tickLength: 10,
+    tickLength: 20,
     numberRange: [-2725120736, -2372919733],
     numberGap: 0.378,
-    verticalLayout: false
+    verticalLayout: false,
+    onDisplayRange: (range: [number, number]) => {
+      return [range[0].toExponential(), range[1].toPrecision()]
+    },
+    onTickInstance: (tick: EdgeInstance) => {
+      tick.thickness = [3, 10];
+    }
   });
 
   axis3 = new DateAxis({
@@ -229,7 +249,13 @@ async function start() {
     tickLength: 10,
     startDate: new Date(2019, 6, 9, 21, 0, 1, 1),
     endDate: new Date(2029, 6, 10, 21, 59, 0),
-    verticalLayout: false
+    verticalLayout: false,
+    onDisplayRange: (range: [Date, Date]) => {
+      return [range[0].getFullYear().toString(), range[1].getFullYear().toString()]
+    },
+    onSubLabelInstance: (label: LabelInstance) => {
+      label.letterSpacing = 3;
+    }
   });
 
   console.log(axis1 && surface.providers.labels1 === axis1.store.providers.labels);

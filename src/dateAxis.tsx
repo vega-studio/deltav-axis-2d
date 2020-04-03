@@ -1,10 +1,10 @@
 import { Vec2, Vec3 } from "./types";
 import { DateAxisStore, IDateAxisStoreOptions } from "./store/date-axis-store";
 
-export interface IDateAxisProps extends IDateAxisStoreOptions { }
+export interface IDateAxisProps extends IDateAxisStoreOptions<Date> { }
 
 export class DateAxis {
-  store: DateAxisStore;
+  store: DateAxisStore<Date>;
 
   constructor(props: IDateAxisProps) {
     this.store = new DateAxisStore({
@@ -18,6 +18,11 @@ export class DateAxis {
       startDate: props.startDate,
       endDate: props.endDate,
       verticalLayout: props.verticalLayout,
+      displayRangeLabels: props.displayRangeLabels,
+      onDisplayRange: props.onDisplayRange,
+      onMainLabelInstance: props.onMainLabelInstance,
+      onSubLabelInstance: props.onSubLabelInstance,
+      onTickInstance: props.onTickInstance
     });
   }
 

@@ -12,3 +12,14 @@ export type Bucket = {
   label2?: LabelInstance;
   label3?: LabelInstance;
 }
+
+export enum HorizonRangeLayout {
+  ABOVE,
+  BELOW
+}
+
+export enum VerticalRangeLayout {
+  LEFT,
+  RIGHT
+}
+

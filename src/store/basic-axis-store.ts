@@ -1,7 +1,9 @@
 import { Color, Vec2, InstanceProvider, EdgeInstance, LabelInstance, Vec3, AnchorType } from "deltav";
 import { Bucket } from "./bucket";
+import { HorizonRangeLayout, VerticalRangeLayout, AxisDataType } from "src/types";
+import moment from "moment";
 
-export interface IBasicAxisStoreOptions {
+export interface IBasicAxisStoreOptions<T extends number | string | Date> {
   labelColor?: Color;
   labelPadding?: number;
   labelSize?: number; providers?: {
@@ -12,16 +14,26 @@ export interface IBasicAxisStoreOptions {
   tickLength?: number;
   tickWidth?: number;
   verticalLayout?: boolean;
+  displayRangeLabels?: boolean;
+  horizonLayoutRange?: HorizonRangeLayout;
+  verticalLayoutRange?: VerticalRangeLayout;
   view: {
     origin: Vec2;
     size: Vec2;
   };
+  onDisplayRange?: (displayRange: [T, T]) => [string, string];
+  onTickInstance?: (instance: EdgeInstance) => void;
+  onMainLabelInstance?: (instance: LabelInstance) => void;
+  onSubLabelInstance?: (instance: LabelInstance) => void;
 }
 
 
-export abstract class BasicAxisStore {
+export abstract class BasicAxisStore<T extends number | string | Date> {
   verticalLayout: boolean = true;
   resizeWithWindow: boolean = true;
+  displayRangeLabels: boolean = true;
+  horizonLayoutRange: HorizonRangeLayout = HorizonRangeLayout.ABOVE;
+  verticalLayoutRange: VerticalRangeLayout = VerticalRangeLayout.LEFT;
 
   // Axis Metrics
   view: {
@@ -69,7 +81,45 @@ export abstract class BasicAxisStore {
     labels: new InstanceProvider<LabelInstance>()
   }
 
-  constructor(options: IBasicAxisStoreOptions) {
+  mainLabelHandler = (_label: LabelInstance) => { };
+  subLabelHandler = (_label: LabelInstance) => { };
+  tickHandler = (_tick: EdgeInstance) => { };
+
+  rangeHandler = (values: [T, T]) => {
+    if (typeof values[0] === 'number' && typeof values[1] === 'number') {
+      return [values[0].toFixed(2), values[1].toFixed(2)] as [string, string];
+    } else if (
+      values[0] instanceof Date && values[1] instanceof Date
+    ) {
+      return [
+        moment(values[0]).format("MMM DD YYYY, kk:mm:ss"),
+        moment(values[1]).format("MMM DD YYYY, kk:mm:ss")
+      ]
+    } else if (
+      typeof values[0].toString === 'function' &&
+      typeof values[1].toString === 'function'
+    ) {
+      return [values[0].toString(), values[1].toString()] as [string, string];
+    }
+
+    return ["", ""] as [string, string];
+  };
+
+  labelReady = (text: string) => new Promise((resolve) => {
+    const atlasLabel = new LabelInstance({
+      text,
+      fontSize: this.labelSize,
+      origin: [-100, -100],
+      color: [0, 0, 0, 0],
+      onReady: () => {
+        resolve(text);
+      }
+    })
+
+    this.providers.labels.add(atlasLabel);
+  })
+
+  constructor(options: IBasicAxisStoreOptions<T>) {
     this.view = options.view;
     this.tickWidth = options.tickWidth || this.tickWidth;
     this.tickLength = options.tickLength || this.tickLength;
@@ -80,6 +130,14 @@ export abstract class BasicAxisStore {
       options.verticalLayout : this.verticalLayout;
     this.resizeWithWindow = options.resizeWithWindow !== undefined ?
       options.resizeWithWindow : this.resizeWithWindow;
+    this.displayRangeLabels = options.displayRangeLabels !== undefined ?
+      options.displayRangeLabels : this.displayRangeLabels;
+    this.horizonLayoutRange = options.horizonLayoutRange || this.horizonLayoutRange;
+    this.verticalLayoutRange = options.verticalLayoutRange || this.verticalLayoutRange;
+    this.rangeHandler = options.onDisplayRange || this.rangeHandler;
+    this.mainLabelHandler = options.onMainLabelInstance || this.mainLabelHandler;
+    this.subLabelHandler = options.onSubLabelInstance || this.subLabelHandler;
+    this.tickHandler = options.onTickInstance || this.tickHandler;
 
     Object.assign(this.providers, options.providers);
 
@@ -87,14 +145,15 @@ export abstract class BasicAxisStore {
     this.init();
   }
 
+  abstract async setAtlasLabel(): Promise<any>;
   abstract getMainLabel(index: number): string;
   abstract getSubLabel(index: number): string;
   abstract getPreSetWidth(): number;
   abstract getPreSetHeight(): number;
-  abstract initIndexRange(options: IBasicAxisStoreOptions): void;
+  abstract initIndexRange(options: IBasicAxisStoreOptions<T>): void;
   abstract layoutHorizon(): void;
   abstract layoutVertical(): void;
-  abstract posToDomain(pos: number): string;
+  abstract posToDomain(pos: number): T;
   abstract removeBuckets(start: number, end: number): void;
   abstract removeBucketsAtLowerLevels(start: number, end: number): void;
   abstract updateInterval(): void;
@@ -149,63 +208,104 @@ export abstract class BasicAxisStore {
     }
   }
 
-  getRangeLabels() {
-    const headText = this.posToDomain(this.viewRange[0]);
-    const tailText = this.posToDomain(this.viewRange[1]);
-    const padding = this.labelPadding + (this.verticalLayout ? 0 : 2 * this.labelSize);
+  async getRangeLabels() {
+    if (this.displayRangeLabels) {
+      const rangeValues: [T, T] =
+        [this.posToDomain(this.viewRange[0]), this.posToDomain(this.viewRange[1])];
+      const values = this.rangeHandler(rangeValues);
+      const headText = `${values[0]}`;
+      const tailText = `${values[1]}`;
 
-    if (this.headLabel) {
-      this.headLabel.anchor = {
-        padding,
-        type: AnchorType.TopMiddle
-      };
-      this.headLabel.origin = this.view.origin;
-      this.headLabel.text = headText;
-    } else {
-      this.headLabel = new LabelInstance({
-        anchor: {
-          padding,
-          type: AnchorType.TopMiddle
-        },
-        color: [1, 1, 1, 0.5],
-        fontSize: this.labelSize,
-        text: headText,
-        origin: this.view.origin
-      });
+      const padding =
+        this.verticalLayout ?
+          this.verticalLayoutRange === VerticalRangeLayout.LEFT ?
+            this.labelPadding : this.labelPadding :
+          this.horizonLayoutRange === HorizonRangeLayout.BELOW ?
+            this.labelPadding + 2 * this.labelSize : this.labelPadding;
+
+      const headOrigin: [number, number] =
+        this.verticalLayout ?
+          this.verticalLayoutRange === VerticalRangeLayout.LEFT ?
+            [this.view.origin[0] - padding, this.view.origin[1]] :
+            [this.view.origin[0] + padding, this.view.origin[1]] :
+          this.horizonLayoutRange === HorizonRangeLayout.BELOW ?
+            [this.view.origin[0], this.view.origin[1] + padding] :
+            [this.view.origin[0], this.view.origin[1] - padding];
+
+      const tailOrigin: [number, number] =
+        this.verticalLayout ?
+          this.verticalLayoutRange === VerticalRangeLayout.LEFT ?
+            [this.view.origin[0] - padding, this.view.origin[1] - this.view.size[1]] :
+            [this.view.origin[0] + padding, this.view.origin[1] - this.view.size[1]] :
+          this.horizonLayoutRange === HorizonRangeLayout.BELOW ?
+            [this.view.origin[0] + this.view.size[0], this.view.origin[1] + padding] :
+            [this.view.origin[0] + this.view.size[0], this.view.origin[1] - padding];
+
+      const headAnchorType =
+        this.verticalLayout ?
+          this.verticalLayoutRange === VerticalRangeLayout.LEFT ?
+            AnchorType.BottomRight : AnchorType.BottomLeft :
+          this.horizonLayoutRange === HorizonRangeLayout.BELOW ?
+            AnchorType.TopLeft : AnchorType.BottomLeft;
+
+      const tailAnchorType =
+        this.verticalLayout ?
+          this.verticalLayoutRange === VerticalRangeLayout.LEFT ?
+            AnchorType.TopRight : AnchorType.TopLeft :
+          this.horizonLayoutRange === HorizonRangeLayout.BELOW ?
+            AnchorType.TopRight : AnchorType.BottomRight;
+
+      if (this.headLabel) {
+        this.headLabel.anchor = {
+          padding: 0,
+          type: headAnchorType
+        };
+        this.headLabel.origin = headOrigin;
+        this.headLabel.text = headText;
+      } else {
+        this.headLabel = new LabelInstance({
+          anchor: {
+            padding: 0,
+            type: headAnchorType
+          },
+          color: [1, 1, 1, 0.5],
+          fontSize: this.labelSize,
+          text: headText,
+          origin: headOrigin
+        });
+      }
+
+      if (this.tailLabel) {
+        this.tailLabel.text = tailText;
+        this.tailLabel.anchor = {
+          padding: 0,
+          type: tailAnchorType
+        };
+        this.tailLabel.origin = tailOrigin;
+      } else {
+        this.tailLabel = new LabelInstance({
+          anchor: {
+            padding: 0,
+            type: tailAnchorType
+          },
+          color: [1, 1, 1, 0.5],
+          fontSize: this.labelSize,
+          text: tailText,
+          origin: tailOrigin
+        });
+      }
+
+      this.providers.labels.add(this.headLabel);
+      this.providers.labels.add(this.tailLabel);
     }
 
-    if (this.tailLabel) {
-      this.tailLabel.text = tailText;
-      this.tailLabel.anchor = {
-        padding,
-        type: this.verticalLayout ? AnchorType.BottomMiddle : AnchorType.TopMiddle
-      };
-      this.tailLabel.origin = this.verticalLayout ?
-        [this.view.origin[0], this.view.origin[1] - this.view.size[1]] :
-        [this.view.origin[0] + this.view.size[0], this.view.origin[1]];
-    } else {
-      this.tailLabel = new LabelInstance({
-        anchor: {
-          padding,
-          type: this.verticalLayout ? AnchorType.BottomMiddle : AnchorType.TopMiddle
-        },
-        color: [1, 1, 1, 0.5],
-        fontSize: this.labelSize,
-        text: tailText,
-        origin: this.verticalLayout ?
-          [this.view.origin[0], this.view.origin[1] - this.view.size[1]] :
-          [this.view.origin[0] + this.view.size[0], this.view.origin[1]]
-      });
-    }
-
-    this.providers.labels.add(this.headLabel);
-    this.providers.labels.add(this.tailLabel)
   };
 
-  init() {
+  async init() {
     this.initChartMetrics();
     this.drawAuxilaryLines();
     this.updateInterval();
+    await this.setAtlasLabel();
     this.layoutLabels();
   }
 

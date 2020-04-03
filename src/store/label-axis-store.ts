@@ -1,23 +1,23 @@
 import { BasicAxisStore, IBasicAxisStoreOptions } from "./basic-axis-store";
-import { Vec2 } from "deltav";
+import { Vec2, LabelInstance } from "deltav";
 import { Bucket } from "./bucket";
 
-export interface ILabelAxisStoreOptions extends IBasicAxisStoreOptions {
+export interface ILabelAxisStoreOptions<T extends string> extends IBasicAxisStoreOptions<T> {
   labels: string[];
   maxLabelLength?: number;
 }
 
-export class LabelAxisStore extends BasicAxisStore {
+export class LabelAxisStore<T extends string> extends BasicAxisStore<string> {
   higherInterval: number = 2;
   preInterval: number = 1;
   labels: string[];
   maxLabelLength: number = 10;
 
-  constructor(options: ILabelAxisStoreOptions) {
+  constructor(options: ILabelAxisStoreOptions<string>) {
     super(options);
   }
 
-  initIndexRange(options: ILabelAxisStoreOptions) {
+  initIndexRange(options: ILabelAxisStoreOptions<string>) {
     this.labels = options.labels;
     this.maxLabelLength = options.maxLabelLength || this.maxLabelLength;
     this.unitNumber = this.labels.length;
@@ -125,14 +125,14 @@ export class LabelAxisStore extends BasicAxisStore {
     }
   }
 
-  posToDomain(pos: number): string {
+  posToDomain(pos: number): T {
     const maxRange = this.maxRange;
     pos = Math.min(Math.max(pos, maxRange[0]), maxRange[1]);
     const curScale = 0.5 * Math.pow(2, this.scale);
     const unit = curScale * (this.verticalLayout ? this.unitHeight : this.unitWidth);
     let index = Math.floor((pos - maxRange[0]) / unit);
     index = Math.min(index, this.labels.length - 1);
-    return this.labels[index];
+    return this.labels[index] as T;
   }
 
   removeBuckets(start: number, end: number) {
@@ -204,7 +204,10 @@ export class LabelAxisStore extends BasicAxisStore {
           labelColor: this.labelColor,
           labelFontSize: this.labelSize,
           tickLength: this.tickLength,
-          tickWidth: this.tickWidth
+          tickWidth: this.tickWidth,
+          onMainLabelInstance: this.mainLabelHandler,
+          onSubLabelInstance: this.subLabelHandler,
+          onTickInstance: this.tickHandler
         })
 
         bucket.createMainLabel(
@@ -232,6 +235,18 @@ export class LabelAxisStore extends BasicAxisStore {
         }
       }
     }
+  }
+
+  async setAtlasLabel() {
+    const letters = "ABCEDFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=[]:;'<>,.";
+    let letterCombination = "";
+
+    for (let i = 0; i < letters.length; i++) {
+      for (let j = 0; j < letters.length; j++) {
+        letterCombination += letters[i] + letters[j];
+      }
+    }
+    await this.labelReady(letterCombination);
   }
 
   updateInterval() {

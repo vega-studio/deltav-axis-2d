@@ -1,10 +1,10 @@
 import { Vec2, Vec3 } from "./types";
 import { INumberAxisStoreOptions, NumberAxisStore } from "./store/number-axis-store";
 
-export interface INumberAxisProps extends INumberAxisStoreOptions { }
+export interface INumberAxisProps extends INumberAxisStoreOptions<number> { }
 
 export class NumberAxis {
-  store: NumberAxisStore;
+  store: NumberAxisStore<number>;
 
   constructor(props: INumberAxisProps) {
     this.store = new NumberAxisStore({
@@ -18,7 +18,12 @@ export class NumberAxis {
       numberRange: props.numberRange,
       numberGap: props.numberGap,
       decimalLength: props.decimalLength,
-      verticalLayout: props.verticalLayout
+      verticalLayout: props.verticalLayout,
+      displayRangeLabels: props.displayRangeLabels,
+      onDisplayRange: props.onDisplayRange,
+      onMainLabelInstance: props.onMainLabelInstance,
+      onSubLabelInstance: props.onSubLabelInstance,
+      onTickInstance: props.onTickInstance
     });
   }
 

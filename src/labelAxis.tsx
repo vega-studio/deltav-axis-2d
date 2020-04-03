@@ -1,10 +1,10 @@
 import { Vec2, Vec3 } from "./types";
 import { LabelAxisStore, ILabelAxisStoreOptions } from "./store/label-axis-store";
 
-export interface ILabelAxisProps extends ILabelAxisStoreOptions { }
+export interface ILabelAxisProps extends ILabelAxisStoreOptions<string> { }
 
 export class LabelAxis {
-  store: LabelAxisStore;
+  store: LabelAxisStore<string>;
 
   constructor(props: ILabelAxisProps) {
     this.store = new LabelAxisStore({
@@ -17,7 +17,12 @@ export class LabelAxis {
       labelPadding: props.labelPadding,
       labels: props.labels,
       maxLabelLength: props.maxLabelLength,
-      verticalLayout: props.verticalLayout
+      verticalLayout: props.verticalLayout,
+      displayRangeLabels: props.displayRangeLabels,
+      onDisplayRange: props.onDisplayRange,
+      onMainLabelInstance: props.onMainLabelInstance,
+      onSubLabelInstance: props.onSubLabelInstance,
+      onTickInstance: props.onTickInstance
     });
   }
 

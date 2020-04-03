@@ -1,25 +1,26 @@
 import { BasicAxisStore, IBasicAxisStoreOptions } from "./basic-axis-store";
-import { Vec2 } from "deltav";
+import { Vec2, LabelInstance } from "deltav";
 import { Bucket } from "./bucket";
+import { AxisDataType } from "src/types";
 
-export interface INumberAxisStoreOptions extends IBasicAxisStoreOptions {
+export interface INumberAxisStoreOptions<T extends number> extends IBasicAxisStoreOptions<number> {
   numberRange: Vec2;
   numberGap?: number;
   decimalLength?: number;
 }
 
-export class NumberAxisStore extends BasicAxisStore {
+export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
   higherInterval: number = 2;
   preInterval: number = 1;
   numberRange: Vec2;
   numberGap: number;
   decimalLength: number;
 
-  constructor(options: INumberAxisStoreOptions) {
+  constructor(options: INumberAxisStoreOptions<number>) {
     super(options);
   }
 
-  initIndexRange(options: INumberAxisStoreOptions) {
+  initIndexRange(options: INumberAxisStoreOptions<number>) {
     this.numberRange = options.numberRange;
     this.numberGap = options.numberGap || 1;
     this.decimalLength = options.decimalLength || 3;
@@ -117,11 +118,11 @@ export class NumberAxisStore extends BasicAxisStore {
     }
   }
 
-  posToDomain(pos: number): string {
+  posToDomain(pos: number): AxisDataType {
     const numberRange = this.numberRange;
     const maxRange = this.maxRange;
     const posScale = (pos - maxRange[0]) / (maxRange[1] - maxRange[0]);
-    return `${(posScale * (numberRange[1] - numberRange[0]) + numberRange[0]).toFixed(this.decimalLength)}`;
+    return posScale * (numberRange[1] - numberRange[0]) + numberRange[0];
   }
 
   removeBuckets(start: number, end: number) {
@@ -193,7 +194,10 @@ export class NumberAxisStore extends BasicAxisStore {
           labelColor: this.labelColor,
           labelFontSize: this.labelSize,
           tickLength: this.tickLength,
-          tickWidth: this.tickWidth
+          tickWidth: this.tickWidth,
+          onMainLabelInstance: this.mainLabelHandler,
+          onSubLabelInstance: this.subLabelHandler,
+          onTickInstance: this.tickHandler
         })
 
         bucket.createMainLabel(
@@ -235,6 +239,17 @@ export class NumberAxisStore extends BasicAxisStore {
     this.updateInterval();
     this.drawAuxilaryLines();
     this.layoutLabels();
+  }
+
+  async setAtlasLabel() {
+    const numberElements = "0123456789-.e"
+    let numberCombination = "";
+    for (let i = 0; i < numberElements.length; i++) {
+      for (let j = 0; j < numberElements.length; j++) {
+        numberCombination += numberElements[i] + numberElements[j];
+      }
+    }
+    await this.labelReady(numberCombination);
   }
 
   updateInterval() {

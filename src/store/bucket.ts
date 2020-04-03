@@ -5,6 +5,9 @@ export interface IBucketOptions {
   labelFontSize?: number;
   tickLength?: number;
   tickWidth?: number;
+  onTickInstance: (instance: EdgeInstance) => void;
+  onMainLabelInstance: (instance: LabelInstance) => void;
+  onSubLabelInstance: (instance: LabelInstance) => void;
 }
 
 
@@ -20,11 +23,18 @@ export class Bucket {
   tickLength: number = 10;
   tickWidth: number = 1;
 
+  onTickInstance: (instance: EdgeInstance) => void;
+  onMainLabelInstance: (instance: LabelInstance) => void;
+  onSubLabelInstance: (instance: LabelInstance) => void;
+
   constructor(options: IBucketOptions) {
     this.labelColor = options.labelColor || this.labelColor;
     this.labelFontSize = options.labelFontSize || this.labelFontSize;
     this.tickLength = options.tickLength || this.tickLength;
     this.tickWidth = options.tickWidth || this.tickWidth;
+    this.onTickInstance = options.onTickInstance;
+    this.onMainLabelInstance = options.onMainLabelInstance;
+    this.onSubLabelInstance = options.onSubLabelInstance;
   }
 
   createMainLabel(
@@ -44,7 +54,11 @@ export class Bucket {
       fontSize: this.labelFontSize,
       origin: position,
       text,
-      onReady: onLabelReady
+      onReady: (label: LabelInstance) => {
+        if (onLabelReady) onLabelReady(label);
+        this.onMainLabelInstance(label);
+        console.warn("call back", this.onMainLabelInstance);
+      }
     })
   }
 
@@ -63,7 +77,8 @@ export class Bucket {
       color: [this.labelColor[0], this.labelColor[1], this.labelColor[2], alpha],
       fontSize: this.labelFontSize,
       origin: position,
-      text
+      text,
+      onReady: this.onSubLabelInstance
     })
   }
 
@@ -86,6 +101,8 @@ export class Bucket {
       startColor: [1, 1, 1, alpha],
       endColor: [1, 1, 1, alpha]
     });
+
+    this.onTickInstance(this.tick);
   }
 
   updateMainLabel(

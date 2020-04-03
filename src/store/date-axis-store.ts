@@ -1,17 +1,18 @@
 import { BasicAxisStore, IBasicAxisStoreOptions } from "./basic-axis-store";
 import moment from "moment";
 import { getSimpleIntervalLengths, getSimpleIndices, getSimpleMomentLevel } from "src/util/dateUtil";
-import { Vec2 } from "deltav";
+import { Vec2, LabelInstance } from "deltav";
 import { Bucket } from "./bucket";
+import { AxisDataType } from "src/types";
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export interface IDateAxisStoreOptions extends IBasicAxisStoreOptions {
+export interface IDateAxisStoreOptions<T extends Date> extends IBasicAxisStoreOptions<T> {
   startDate?: Date | string;
   endDate?: Date | string;
 }
 
-export class DateAxisStore extends BasicAxisStore {
+export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
   startDate: Date;
   endDate: Date;
   totalYears: number;
@@ -23,7 +24,7 @@ export class DateAxisStore extends BasicAxisStore {
   labelIntervalLengths: number[];
   tickIntervalLengths: number[];
 
-  constructor(options: IDateAxisStoreOptions) {
+  constructor(options: IDateAxisStoreOptions<Date>) {
     super(options);
   }
 
@@ -96,7 +97,7 @@ export class DateAxisStore extends BasicAxisStore {
     }
   }
 
-  initIndexRange(options: IDateAxisStoreOptions) {
+  initIndexRange(options: IDateAxisStoreOptions<Date>) {
     const startDate = options.startDate;
     const endDate = options.endDate;
     this.startDate = typeof startDate === "string" ? new Date(startDate) : startDate;
@@ -132,14 +133,16 @@ export class DateAxisStore extends BasicAxisStore {
     } = this;
 
     const curScale = 0.5 * Math.pow(2, scale);
-    const maxBucketWidth = maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
+    let maxBucketWidth = maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
+    maxBucketWidth *= 0.9;
 
     // LabelScale
     const labelBucketWidth = maxBucketWidth;
-    const labelLowerScale = labelBucketWidth / (unitWidth * interval);
-    const labelHigherScale = Math.min(
-      10 * labelLowerScale,
-      maxBucketWidth / (unitWidth * lowerInterval)
+    const labelLowerScale = 0.8 * labelBucketWidth / (unitWidth * interval);
+    const labelHigherScale = maxBucketWidth / (unitWidth * interval);
+    Math.min(
+      1.2 * labelLowerScale,
+      maxBucketWidth / (unitWidth * interval)
     );
     const labelAlphaScale = Math.min(Math.max(curScale, labelLowerScale), labelHigherScale);
     const labelAlpha = (labelAlphaScale - labelLowerScale) / (labelHigherScale - labelLowerScale);
@@ -234,7 +237,7 @@ export class DateAxisStore extends BasicAxisStore {
 
   }
 
-  posToDomain(pos: number): string {
+  posToDomain(pos: number): Date {
     const maxRange = this.maxRange;
     pos = Math.min(Math.max(pos, maxRange[0]), maxRange[1]);
     const curScale = 0.5 * Math.pow(2, this.scale);
@@ -242,7 +245,7 @@ export class DateAxisStore extends BasicAxisStore {
     let index = Math.floor((pos - maxRange[0]) / unit);
     const time = moment(this.startDate).add(index, 'milliseconds').toDate();
 
-    return moment(time).format("MMM DD YYYY, kk:mm:ss");
+    return time;
   }
 
   removeBuckets(start: number, end: number) {
@@ -346,7 +349,10 @@ export class DateAxisStore extends BasicAxisStore {
           labelColor: this.labelColor,
           labelFontSize: this.labelSize,
           tickLength: this.tickLength,
-          tickWidth: this.tickWidth
+          tickWidth: this.tickWidth,
+          onMainLabelInstance: this.mainLabelHandler,
+          onSubLabelInstance: this.subLabelHandler,
+          onTickInstance: this.tickHandler
         })
 
         bucket.showLabels = false;
@@ -410,7 +416,10 @@ export class DateAxisStore extends BasicAxisStore {
           labelColor: this.labelColor,
           labelFontSize: this.labelSize,
           tickLength: this.tickLength,
-          tickWidth: this.tickWidth
+          tickWidth: this.tickWidth,
+          onMainLabelInstance: this.mainLabelHandler,
+          onSubLabelInstance: this.subLabelHandler,
+          onTickInstance: this.tickHandler
         })
 
         const text = this.getMainLabel(index);
@@ -477,6 +486,21 @@ export class DateAxisStore extends BasicAxisStore {
     this.layoutLabels();
   }
 
+  async setAtlasLabel() {
+    let dateElement = "JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC";
+    const numberElement = "0123456789";
+
+    for (let i = 0; i < numberElement.length; i++) {
+      for (let j = 0; j < numberElement.length; j++) {
+        dateElement += numberElement[i] + numberElement[j];
+      }
+
+      dateElement += `${numberElement[i]}ms`;
+    }
+
+    return this.labelReady(dateElement);
+  }
+
   updateInterval() {
     this.preTickScaleLevel = this.tickScaleLevel;
     this.preLabelScaleLevel = this.labelScaleLevel;
@@ -486,9 +510,11 @@ export class DateAxisStore extends BasicAxisStore {
       0 : this.labelIntervalLengths[this.labelScaleLevel - 1];
     const curScale = 0.5 * Math.pow(2, this.scale);
     const unit = (this.verticalLayout ? this.unitHeight : this.unitWidth) * curScale;
-    const maxValue = this.verticalLayout ?
+
+    let maxValue = this.verticalLayout ?
       this.maxLabelHeight > 0 ? this.maxLabelHeight : this.preSetMaxHeight :
       this.maxLabelWidth > 0 ? this.maxLabelWidth : this.preSetMaxWidth;
+    maxValue *= 0.8;
 
     if (this.interval * unit < maxValue) {
       while (this.interval * unit < maxValue) {
