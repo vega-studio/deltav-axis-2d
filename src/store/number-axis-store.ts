@@ -1,12 +1,12 @@
 import { BasicAxisStore, IBasicAxisStoreOptions } from "./basic-axis-store";
-import { Vec2, LabelInstance } from "deltav";
-import { Bucket } from "./bucket";
-import { AxisDataType } from "src/types";
+import { Vec2 } from "deltav";
 
 export interface INumberAxisStoreOptions<T extends number> extends IBasicAxisStoreOptions<number> {
   numberRange: Vec2;
   numberGap?: number;
   decimalLength?: number;
+  /**Defines the number of children at each new level to show when zoom in */
+  childrenNumber?: number;
 }
 
 export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
@@ -14,27 +14,33 @@ export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
   preInterval: number = 1;
   numberRange: Vec2;
   numberGap: number;
+  childrenNumber: number;
   decimalLength: number;
 
-  constructor(options: INumberAxisStoreOptions<number>) {
+  constructor(options: INumberAxisStoreOptions<T>) {
     super(options);
   }
 
-  initIndexRange(options: INumberAxisStoreOptions<number>) {
+  initIndexRange(options: INumberAxisStoreOptions<T>) {
     this.numberRange = options.numberRange;
     this.numberGap = options.numberGap || 1;
-    this.decimalLength = options.decimalLength || 3;
+    this.childrenNumber = options.childrenNumber || 2;
+    this.decimalLength = options.decimalLength || -1;
     this.unitNumber = Math.floor((this.numberRange[1] - this.numberRange[0]) / this.numberGap) + 1;
     this.preSetMaxWidth = this.getPreSetWidth();
     this.preSetMaxHeight = this.getPreSetHeight();
     this.unitWidth = this.view.size[0] / this.unitNumber;
     this.unitHeight = this.view.size[1] / this.unitNumber;
     this.indexRange = [0, this.unitNumber - 1];
+
+    this.generateIntervalLengths();
   }
 
   getPreSetWidth() {
-    const startString = this.numberRange[0].toFixed(this.decimalLength);
-    const endString = this.numberRange[1].toFixed(this.decimalLength);
+    const startString = this.decimalLength !== -1 ?
+      this.numberRange[0].toFixed(this.decimalLength) : this.numberRange[0].toString();
+    const endString = this.decimalLength !== -1 ?
+      this.numberRange[1].toFixed(this.decimalLength) : this.numberRange[1].toString();
     return Math.max(startString.length, endString.length) * this.labelSize / 2;
   }
 
@@ -44,7 +50,7 @@ export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
 
   getMainLabel(index: number): string {
     const number = this.numberRange[0] + index * this.numberGap;
-    if (number % 1 !== 0) return number.toFixed(this.decimalLength);
+    if (number % 1 !== 0 && this.decimalLength !== -1) return number.toFixed(this.decimalLength);
     return number.toString();
   }
 
@@ -52,179 +58,82 @@ export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
     return "";
   }
 
-  layoutHorizon() {
-    const {
-      higherInterval,
-      interval,
-      lowerInterval,
-      maxLabelWidth,
-      preSetMaxWidth,
-      scale,
-      unitWidth,
-      view
-    } = this;
+  getAlphas() {
+    const maxBucketSize = this.verticalLayout ?
+      this.maxLabelHeight === 0 ? this.preSetMaxHeight : this.maxLabelHeight :
+      this.maxLabelWidth === 0 ? this.preSetMaxWidth : this.maxLabelWidth;
+    const unit = this.verticalLayout ? this.unitHeight : this.unitWidth;
+    const curScale = this.transformScale();
+    const labelLowerScale = maxBucketSize / (unit * this.interval);
+    const labelHigherScale = Math.min(
+      this.verticalLayout ? 10 * labelLowerScale : 1.2 * labelLowerScale,
+      maxBucketSize / (this.unitWidth * this.lowerInterval)
+    );
+    const labelAlphaScale = Math.min(Math.max(curScale, labelLowerScale), labelHigherScale);
+    const labelAlpha = (labelAlphaScale - labelLowerScale) / (labelHigherScale - labelLowerScale);
+    const tickAlpha = this.labelScaleLevel === 0 ? 1 : labelAlpha;
 
-    const origin = view.origin;
-    const curScale = 0.5 * Math.pow(2, scale);
-    const maxBucketWidth = maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
-    const lowerScale = maxBucketWidth / (unitWidth * interval);
-    const higherScale = lowerInterval === 0 ?
-      maxBucketWidth / (unitWidth * interval * 0.5) :
-      maxBucketWidth / (unitWidth * lowerInterval);
-    const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
-    const alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
-    const start = Math.ceil(this.indexRange[0] / interval) * interval;
-    const end = Math.floor(this.indexRange[1] / interval) * interval;
-    const unitW = unitWidth * curScale;
-
-    for (let i = start; i <= end; i += interval) {
-      let labelAlpha = alpha < 0.5 ? alpha * 2 : 1.0;
-      const x = origin[0] + (i + 0.5) * unitW + this.offset;
-      if (i % higherInterval === 0) labelAlpha = 1;
-      this.setBucket(i, [x, origin[1]], labelAlpha);
+    return {
+      labelAlpha,
+      tickAlpha
     }
   }
 
-  layoutVertical() {
-    const {
-      higherInterval,
-      interval,
-      lowerInterval,
-      maxLabelHeight,
-      preSetMaxHeight,
-      scale,
-      unitHeight,
-      view
-    } = this;
+  getMaxLevel() {
+    return this.intervalLengths.length - 1;
+  }
 
-    const curScale = 0.5 * Math.pow(2, scale);
-    const maxBucketHeight = maxLabelHeight === 0 ? preSetMaxHeight : maxLabelHeight;
-    const lowerScale = maxBucketHeight / (unitHeight * interval);
-    const higherScale = lowerInterval === 0 ?
-      maxBucketHeight / (unitHeight * interval * 0.5) :
-      maxBucketHeight / (unitHeight * lowerInterval);
-    const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
-    const alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
-    const unitH = unitHeight * curScale;
-    const origin = view.origin;
-    const start = Math.ceil(this.indexRange[0] / interval) * interval;
-    const end = Math.floor(this.indexRange[1] / interval) * interval;
+  generateIntervalLengths() {
+    this.intervalLengths = [];
+    this.intervalLengths.push(1);
 
-    for (let i = start; i <= end; i += interval) {
-      let labelAlpha = alpha < 0.5 ? alpha * 2 : 1.0;
-      const y = origin[1] - (i + 0.5) * unitH - this.offset;
-      if (i % higherInterval === 0) labelAlpha = 1;
-      this.setBucket(i, [origin[0], y], labelAlpha);
+    let level = Math.floor(Math.log2(this.unitNumber) / Math.log2(this.childrenNumber));
+    let interval = 1;
+
+    while (level > 0) {
+      interval *= this.childrenNumber;
+      this.intervalLengths.push(interval);
+      level--;
     }
   }
 
-  posToDomain(pos: number): AxisDataType {
+  getIndexLevel(index: number) {
+    if (index === 0) return Math.floor(Math.log2(this.unitNumber) / Math.log2(this.childrenNumber));
+    let level = 0;
+
+    while (index % this.childrenNumber === 0) {
+      index = index / this.childrenNumber;
+      level++;
+    }
+
+    return level;
+  }
+
+  getIndices(start: number, end: number, lowerLevel: number, higherLevel?: number) {
+    const indices: number[] = [];
+    const maxLevel = Math.floor(Math.log2(this.unitNumber) / Math.log2(this.childrenNumber));
+    higherLevel = higherLevel || maxLevel;
+
+    for (let level = lowerLevel; level <= higherLevel; level++) {
+      const interval = this.intervalLengths[level];
+      const higherInterval = interval * this.childrenNumber;
+      start = Math.ceil(start / interval) * interval;
+      end = Math.floor(end / interval) * interval;
+
+      for (let i = start; i <= end; i += interval) {
+        if (i == 0 && level === this.intervalLengths.length - 1) indices.push(i)
+        else if (i % higherInterval !== 0) indices.push(i);
+      }
+    }
+
+    return indices;
+  }
+
+  posToDomain(pos: number): number {
     const numberRange = this.numberRange;
     const maxRange = this.maxRange;
     const posScale = (pos - maxRange[0]) / (maxRange[1] - maxRange[0]);
     return posScale * (numberRange[1] - numberRange[0]) + numberRange[0];
-  }
-
-  removeBuckets(start: number, end: number) {
-    const interval = this.preInterval;
-    const s = Math.ceil(start / interval) * interval;
-    const e = Math.floor(end / interval) * interval;
-
-    for (let i = s; i <= e; i += interval) {
-      if (this.bucketMap.has(i)) {
-        const bucket = this.bucketMap.get(i);
-
-        if (bucket.showLabels) {
-          bucket.showLabels = false;
-          if (bucket.mainLabel) this.providers.labels.remove(bucket.mainLabel);
-          if (bucket.subLabel) this.providers.labels.remove(bucket.subLabel);
-        }
-
-        if (bucket.showTick) {
-          bucket.showTick = false;
-          this.providers.ticks.remove(bucket.tick);
-        }
-      }
-    }
-  }
-
-  removeBucketsAtLowerLevels(start: number, end: number) {
-    if (this.preInterval < this.interval) {
-      this.removeBuckets(start, end);
-    }
-  }
-
-  setBucket(index: number, position: Vec2, alpha: number) {
-    const {
-      labelPadding,
-    } = this;
-
-    const labelAlpha = alpha > 0.4 ? (alpha - 0.4) * 5 / 3 : 0;
-    const tickAlpha = alpha;
-
-    const inViewRange = this.verticalLayout ?
-      window.innerHeight - position[1] >= this.viewRange[0] &&
-      window.innerHeight - position[1] <= this.viewRange[1] :
-      position[0] >= this.viewRange[0] && position[0] <= this.viewRange[1];
-
-    if (inViewRange) {
-      if (this.bucketMap.has(index)) {
-        const bucket = this.bucketMap.get(index);
-
-        if (bucket.mainLabel) {
-          bucket.updateMainLabel(position, labelAlpha, labelPadding, this.verticalLayout);
-        }
-
-        if (bucket.tick) {
-          bucket.updateTick(position, tickAlpha, this.verticalLayout);
-        }
-
-        if (!bucket.showLabels) {
-          bucket.showLabels = true;
-          this.providers.labels.add(bucket.mainLabel);
-        }
-
-        if (!bucket.showTick) {
-          bucket.showTick = true;
-          this.providers.ticks.add(bucket.tick);
-        }
-      } else {
-        const text = this.getMainLabel(index);
-        const bucket: Bucket = new Bucket({
-          labelColor: this.labelColor,
-          labelFontSize: this.labelSize,
-          tickLength: this.tickLength,
-          tickWidth: this.tickWidth,
-          onMainLabelInstance: this.mainLabelHandler,
-          onSubLabelInstance: this.subLabelHandler,
-          onTickInstance: this.tickHandler
-        })
-
-        bucket.createMainLabel(
-          text, position, alpha, labelPadding, this.verticalLayout, this.onLabelReady
-        )
-
-        bucket.createTick(position, alpha, this.verticalLayout);
-        this.bucketMap.set(index, bucket);
-        this.providers.labels.add(bucket.mainLabel);
-        this.providers.ticks.add(bucket.tick);
-
-      }
-    } else {
-      if (this.bucketMap.has(index)) {
-        const bucket = this.bucketMap.get(index);
-
-        if (bucket.showLabels) {
-          bucket.showLabels = false;
-          this.providers.labels.remove(bucket.mainLabel);
-        }
-
-        if (bucket.showTick) {
-          bucket.showTick = false;
-          this.providers.ticks.remove(bucket.tick);
-        }
-      }
-    }
   }
 
   setRange(start: number, end: number) {
@@ -252,29 +161,4 @@ export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
     await this.labelReady(numberCombination);
   }
 
-  updateInterval() {
-    this.preInterval = this.interval;
-    const curScale = 0.5 * Math.pow(2, this.scale);
-    const unit = (this.verticalLayout ? this.unitHeight : this.unitWidth) * curScale;
-    const maxValue = this.verticalLayout ?
-      this.maxLabelHeight === 0 ? this.preSetMaxHeight : this.maxLabelHeight :
-      this.maxLabelWidth === 0 ? this.preSetMaxWidth : this.maxLabelWidth;
-
-    if (this.interval * unit < maxValue) {
-      while (this.interval * unit < maxValue) {
-        this.interval *= 2;
-        this.lowerInterval = this.interval / 2;
-      }
-    } else {
-      while (
-        this.lowerInterval * unit >= maxValue &&
-        this.interval * unit >= maxValue
-      ) {
-        this.interval /= 2;
-        this.lowerInterval = this.interval === 1 ? 0 : this.interval / 2;
-      }
-    }
-
-    this.higherInterval = this.interval * 2;
-  }
 }

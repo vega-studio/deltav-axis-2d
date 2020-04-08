@@ -8,6 +8,7 @@ export class NumberAxis {
 
   constructor(props: INumberAxisProps) {
     this.store = new NumberAxisStore({
+      childrenNumber: props.childrenNumber,
       view: props.view,
       providers: props.providers,
       tickWidth: props.tickWidth,

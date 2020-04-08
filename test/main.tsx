@@ -176,6 +176,7 @@ async function start() {
 
   // Make our axis component
   axis1 = new LabelAxis({
+    childrenNumber: 3,
     view: {
       origin: [200, 550],
       size: [1200, 500],
@@ -190,25 +191,23 @@ async function start() {
     labelPadding: 15,
     maxLabelLength: 10,
     tickWidth: 2,
-    tickLength: 10,
+    tickLength: 15,
     verticalLayout: false,
     displayRangeLabels: true,
     onDisplayRange: (range: [string, string]) => {
-      return [range[0].substring(0, 1), "how"]
+      return ["", ""]
     },
     onMainLabelInstance: (label: LabelInstance) => {
-      label.text = "hello";
-      label.fontSize = 30;
-      //label.origin = [label.origin[0], label.origin[1] + 10];
-      //label.color = [Math.random(), Math.random(), Math.random(), 1]
+      label.fontSize = 10;
     },
     onTickInstance: (tick: EdgeInstance) => {
       tick.setColor([Math.random(), Math.random(), Math.random(), 1]);
-      tick.setEdgeThickness(50);
+      tick.setEdgeThickness(2);
     }
   });
 
   axis2 = new NumberAxis({
+    childrenNumber: 5,
     view: {
       origin: [420, 700],
       size: [1200, 500],
@@ -221,15 +220,15 @@ async function start() {
     labelSize: 20,
     labelPadding: 15,
     tickWidth: 2,
-    tickLength: 20,
+    tickLength: 10,
     numberRange: [-2725120736, -2372919733],
-    numberGap: 0.378,
+    numberGap: 0.378745868,
     verticalLayout: false,
     onDisplayRange: (range: [number, number]) => {
       return [range[0].toExponential(), range[1].toPrecision()]
     },
     onTickInstance: (tick: EdgeInstance) => {
-      tick.thickness = [3, 10];
+      tick.thickness = [3, 3];
     }
   });
 
@@ -244,14 +243,14 @@ async function start() {
     },
     labelColor: [1, 0, 0.5, 1],
     labelSize: 18,
-    labelPadding: 15,
-    tickWidth: 2,
+    labelPadding: 20,
+    tickWidth: 1,
     tickLength: 10,
     startDate: new Date(2019, 6, 9, 21, 0, 1, 1),
     endDate: new Date(2029, 6, 10, 21, 59, 0),
     verticalLayout: false,
     onDisplayRange: (range: [Date, Date]) => {
-      return [range[0].getFullYear().toString(), range[1].getFullYear().toString()]
+      return [range[0].toDateString(), range[1].toDateString()]
     },
     onSubLabelInstance: (label: LabelInstance) => {
       label.letterSpacing = 3;

@@ -1,9 +1,8 @@
 import { BasicAxisStore, IBasicAxisStoreOptions } from "./basic-axis-store";
 import moment from "moment";
 import { getSimpleIntervalLengths, getSimpleIndices, getSimpleMomentLevel } from "src/util/dateUtil";
-import { Vec2, LabelInstance } from "deltav";
+import { Vec2 } from "deltav";
 import { Bucket } from "./bucket";
-import { AxisDataType } from "src/types";
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -16,15 +15,8 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
   startDate: Date;
   endDate: Date;
   totalYears: number;
-  labelScaleLevel: number;
-  preLabelScaleLevel: number;
-  tickScaleLevel: number;
-  preTickScaleLevel: number;
 
-  labelIntervalLengths: number[];
-  tickIntervalLengths: number[];
-
-  constructor(options: IDateAxisStoreOptions<Date>) {
+  constructor(options: IDateAxisStoreOptions<T>) {
     super(options);
   }
 
@@ -81,18 +73,14 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
     return this.labelSize;
   }
 
-  generateDateInterval() {
-    this.tickIntervalLengths = getSimpleIntervalLengths(this.startDate, this.endDate);
-    this.labelIntervalLengths = getSimpleIntervalLengths(this.startDate, this.endDate);
+  generateIntervalLengths() {
+    this.intervalLengths = getSimpleIntervalLengths(this.startDate, this.endDate);
     let level = Math.floor(Math.log2(this.totalYears));
-    let daysInAYearTick = this.tickIntervalLengths[this.tickIntervalLengths.length - 1];
-    let daysInAYearLabel = this.labelIntervalLengths[this.labelIntervalLengths.length - 1];
+    let daysInAYearLabel = this.intervalLengths[this.intervalLengths.length - 1];
 
     while (level > 0) {
-      daysInAYearTick *= 2;
       daysInAYearLabel *= 2;
-      this.tickIntervalLengths.push(daysInAYearTick);
-      this.labelIntervalLengths.push(daysInAYearLabel);
+      this.intervalLengths.push(daysInAYearLabel);
       level--;
     }
   }
@@ -113,7 +101,7 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
       this.totalYears += 1;
     }
 
-    this.generateDateInterval();
+    this.generateIntervalLengths();
     this.preSetMaxWidth = this.getPreSetWidth();
     this.preSetMaxHeight = this.getPreSetHeight();
     this.unitWidth = this.view.size[0] / this.unitNumber;
@@ -121,126 +109,48 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
     this.indexRange = [0, this.unitNumber - 1];
   }
 
-  layoutHorizon() {
-    const {
-      interval,
-      lowerInterval,
-      maxLabelWidth,
-      preSetMaxWidth,
-      scale,
-      unitWidth,
-      view
-    } = this;
+  getMaxLevel() {
+    return (this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0) + 12;
+  }
 
-    const curScale = 0.5 * Math.pow(2, scale);
-    let maxBucketWidth = maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
-    maxBucketWidth *= 0.9;
+  getAlphas() {
+    let maxBucketSize = this.verticalLayout ?
+      this.maxLabelHeight === 0 ? this.preSetMaxHeight : this.maxLabelHeight :
+      (this.maxLabelWidth === 0 ? this.preSetMaxWidth : this.maxLabelWidth) * 0.8;
 
-    // LabelScale
-    const labelBucketWidth = maxBucketWidth;
-    const labelLowerScale = 0.8 * labelBucketWidth / (unitWidth * interval);
-    const labelHigherScale = maxBucketWidth / (unitWidth * interval);
-    Math.min(
-      1.2 * labelLowerScale,
-      maxBucketWidth / (unitWidth * interval)
+    const unit = this.verticalLayout ? this.unitHeight : this.unitWidth;
+
+    const curScale = this.transformScale();
+    const labelLowerScale = maxBucketSize / (unit * this.interval);
+    const labelHigherScale = Math.min(
+      this.verticalLayout ? 1.2 * labelLowerScale : 10 * labelLowerScale,
+      maxBucketSize / (this.unitWidth * this.lowerInterval)
     );
     const labelAlphaScale = Math.min(Math.max(curScale, labelLowerScale), labelHigherScale);
     const labelAlpha = (labelAlphaScale - labelLowerScale) / (labelHigherScale - labelLowerScale);
-
     const tickAlpha = this.labelScaleLevel === 0 ? 1 : labelAlpha;
 
-    const unitW = unitWidth * curScale;
-    const origin = view.origin;
-    const sd = moment(this.startDate).add(this.indexRange[0], 'milliseconds').toDate();
-    const ed = moment(this.startDate).add(this.indexRange[1], 'milliseconds').toDate();
-    const maxLevel = (this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0) + 12;
-
-    const tickIndices = getSimpleIndices(this.startDate, this.totalYears, sd, ed, this.tickScaleLevel, maxLevel);
-
-    for (let i = 0; i < tickIndices.length; i++) {
-      const index = tickIndices[i];
-      const day = moment(this.startDate).add(index, 'milliseconds').toDate();
-      const level = getSimpleMomentLevel(this.startDate, day, this.totalYears);
-      const x = origin[0] + (index + 0.5) * unitW + this.offset;
-      let alpha = tickAlpha;
-      if (level >= this.tickScaleLevel + 1) alpha = 1;
-      this.setDateTick(index, [x, origin[1]], alpha);
-    }
-
-    const labelIndices = getSimpleIndices(this.startDate, this.totalYears, sd, ed, this.labelScaleLevel, maxLevel);
-
-    for (let i = 0; i < labelIndices.length; i++) {
-      const index = labelIndices[i];
-      const day = moment(this.startDate).add(index, 'milliseconds').toDate();
-      const level = getSimpleMomentLevel(this.startDate, day, this.totalYears);
-      const x = origin[0] + (index + 0.5) * unitW + this.offset;
-      let alpha = labelAlpha;
-      if (level >= this.labelScaleLevel + 1) alpha = 1;
-      this.setDateLabel(index, [x, origin[1]], alpha);
+    return {
+      labelAlpha,
+      tickAlpha
     }
   }
 
-  layoutVertical() {
-    const {
-      interval,
-      lowerInterval,
-      maxLabelHeight,
-      preSetMaxHeight,
-      scale,
-      unitHeight,
-      view
-    } = this;
+  getIndexLevel(index: number) {
+    const day = moment(this.startDate).add(index, 'milliseconds').toDate();
+    return getSimpleMomentLevel(this.startDate, day, this.totalYears);
+  }
 
-    const curScale = 0.5 * Math.pow(2, scale);
-    const maxBucketHeight = maxLabelHeight === 0 ? preSetMaxHeight : maxLabelHeight;
-
-    // LabelScale
-    const labelBucketWidth = maxBucketHeight;
-    const labelLowerScale = labelBucketWidth / (unitHeight * interval);
-    const labelHigherScale = Math.min(
-      10 * labelLowerScale,
-      maxBucketHeight / (unitHeight * lowerInterval)
-    );
-    const labelAlphaScale = Math.min(Math.max(curScale, labelLowerScale), labelHigherScale);
-    const labelAlpha = (labelAlphaScale - labelLowerScale) / (labelHigherScale - labelLowerScale);
-    const tickAlpha = this.labelScaleLevel === 0 ? 1 : labelAlpha;
-
-    const unitH = unitHeight * curScale;
-    const origin = view.origin;
-    const sd = moment(this.startDate).add(this.indexRange[0], 'milliseconds').toDate();
-    const ed = moment(this.startDate).add(this.indexRange[1], 'milliseconds').toDate();
-    const maxLevel = (this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0) + 12;
-
-    const tickIndices = getSimpleIndices(this.startDate, this.totalYears, sd, ed, this.tickScaleLevel, maxLevel);
-
-    for (let i = 0; i < tickIndices.length; i++) {
-      const index = tickIndices[i];
-      const day = moment(this.startDate).add(index, 'milliseconds').toDate();
-      const level = getSimpleMomentLevel(this.startDate, day, this.totalYears);
-      const y = origin[1] - (index + 0.5) * unitH - this.offset;
-      let alpha = tickAlpha;
-      if (level >= this.tickScaleLevel + 1) alpha = 1;
-      this.setDateTick(index, [origin[0], y], alpha);
-    }
-
-    const labelIndices = getSimpleIndices(this.startDate, this.totalYears, sd, ed, this.labelScaleLevel, maxLevel);
-
-    for (let i = 0; i < labelIndices.length; i++) {
-      const index = labelIndices[i];
-      const day = moment(this.startDate).add(index, 'milliseconds').toDate();
-      const level = getSimpleMomentLevel(this.startDate, day, this.totalYears);
-      const y = origin[1] - (index + 0.5) * unitH - this.offset;
-      let alpha = labelAlpha;
-      if (level >= this.labelScaleLevel + 1) alpha = 1;
-      this.setDateLabel(index, [origin[0], y], alpha);
-    }
-
+  getIndices(start: number, end: number, lowerLevel: number, higherLevel?: number) {
+    const sd = moment(this.startDate).add(start, 'milliseconds').toDate();
+    const ed = moment(this.startDate).add(end, 'milliseconds').toDate();
+    return getSimpleIndices(this.startDate, this.totalYears, sd, ed, lowerLevel, higherLevel);
   }
 
   posToDomain(pos: number): Date {
     const maxRange = this.maxRange;
     pos = Math.min(Math.max(pos, maxRange[0]), maxRange[1]);
-    const curScale = 0.5 * Math.pow(2, this.scale);
+    const curScale = this.transformScale();
     const unit = curScale * (this.verticalLayout ? this.unitHeight : this.unitWidth);
     let index = Math.floor((pos - maxRange[0]) / unit);
     const time = moment(this.startDate).add(index, 'milliseconds').toDate();
@@ -248,131 +158,7 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
     return time;
   }
 
-  removeBuckets(start: number, end: number) {
-    const maxLevel = (this.totalYears >= 1 ? Math.floor(Math.log2(this.totalYears)) : 0) + 12;
-    this.removeDateLabels(start, end, this.preLabelScaleLevel, maxLevel);
-    this.removeDateTicks(start, end, this.preTickScaleLevel, maxLevel);
-  }
-
-  removeBucketsAtLowerLevels(start: number, end: number) {
-    this.removeDateTicks(start, end, this.tickScaleLevel - 2, this.tickScaleLevel - 1);
-    this.removeDateLabels(start, end, this.labelScaleLevel - 2, this.labelScaleLevel - 1);
-  }
-
-  removeDateBuckets(start: number, end: number, lowerLevel: number, higherLevel?: number) {
-    const startMoment = moment(this.startDate).add(start, 'milliseconds').toDate();
-    const endMoment = moment(this.startDate).add(end, 'milliseconds').toDate();
-    const indices = getSimpleIndices(this.startDate, this.totalYears, startMoment, endMoment, lowerLevel, higherLevel);
-
-    for (let i = 0; i < indices.length; i++) {
-      const index = indices[i];
-
-      if (this.bucketMap.has(index)) {
-        const bucket = this.bucketMap.get(index);
-
-        if (bucket.showLabels) {
-          bucket.showLabels = false;
-          this.providers.labels.remove(bucket.mainLabel);
-          if (bucket.subLabel) this.providers.labels.remove(bucket.subLabel);
-        }
-
-        if (bucket.showTick) {
-          bucket.showTick = false;
-          this.providers.ticks.remove(bucket.tick);
-        }
-      }
-
-    }
-  }
-
-  removeDateTicks(start: number, end: number, lowerLevel: number, higherLevel?: number) {
-    const startMoment = moment(this.startDate).add(start, 'milliseconds').toDate();
-    const endMoment = moment(this.startDate).add(end, 'milliseconds').toDate();
-    const indices = getSimpleIndices(this.startDate, this.totalYears, startMoment, endMoment, lowerLevel, higherLevel);
-
-    for (let i = 0; i < indices.length; i++) {
-      const index = indices[i];
-
-      if (this.bucketMap.has(index)) {
-        const bucket = this.bucketMap.get(index);
-
-        if (bucket.showTick) {
-          bucket.showTick = false;
-          if (bucket.tick) this.providers.ticks.remove(bucket.tick);
-        }
-      }
-    }
-  }
-
-  removeDateLabels(start: number, end: number, lowerLevel: number, higherLevel?: number) {
-    const startMoment = moment(this.startDate).add(start, 'milliseconds').toDate();
-    const endMoment = moment(this.startDate).add(end, 'milliseconds').toDate();
-    const indices = getSimpleIndices(this.startDate, this.totalYears, startMoment, endMoment, lowerLevel, higherLevel);
-
-    for (let i = 0; i < indices.length; i++) {
-      const index = indices[i];
-
-      if (this.bucketMap.has(index)) {
-        const bucket = this.bucketMap.get(index);
-
-        if (bucket.showLabels) {
-          bucket.showLabels = false;
-          if (bucket.mainLabel) this.providers.labels.remove(bucket.mainLabel);
-          if (bucket.subLabel) this.providers.labels.remove(bucket.subLabel);
-        }
-      }
-    }
-  }
-
-  setDateTick(index: number, position: Vec2, alpha: number) {
-    const inViewRange = this.verticalLayout ?
-      window.innerHeight - position[1] >= this.viewRange[0] && window.innerHeight - position[1] <= this.viewRange[1] :
-      position[0] >= this.viewRange[0] && position[0] <= this.viewRange[1];
-
-
-    if (inViewRange) {
-      if (this.bucketMap.has(index)) {
-        const bucket = this.bucketMap.get(index);
-
-        if (bucket.tick) {
-          bucket.updateTick(position, alpha, this.verticalLayout);
-        } else {
-          bucket.createTick(position, alpha, this.verticalLayout);
-        }
-
-        if (!bucket.showTick) {
-          bucket.showTick = true;
-          this.providers.ticks.add(bucket.tick);
-        }
-      } else {
-        const bucket: Bucket = new Bucket({
-          labelColor: this.labelColor,
-          labelFontSize: this.labelSize,
-          tickLength: this.tickLength,
-          tickWidth: this.tickWidth,
-          onMainLabelInstance: this.mainLabelHandler,
-          onSubLabelInstance: this.subLabelHandler,
-          onTickInstance: this.tickHandler
-        })
-
-        bucket.showLabels = false;
-        bucket.createTick(position, alpha, this.verticalLayout);
-        this.bucketMap.set(index, bucket);
-        this.providers.ticks.add(bucket.tick);
-      }
-    } else {
-      if (this.bucketMap.has(index)) {
-        const bucket = this.bucketMap.get(index);
-
-        if (bucket.showTick) {
-          bucket.showTick = false;
-          this.providers.ticks.remove(bucket.tick);
-        }
-      }
-    }
-  }
-
-  setDateLabel(index: number, position: Vec2, alpha: number) {
+  setLabel(index: number, position: Vec2, alpha: number) {
     const {
       labelPadding,
       labelSize
@@ -505,32 +291,33 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
     this.preTickScaleLevel = this.tickScaleLevel;
     this.preLabelScaleLevel = this.labelScaleLevel;
 
-    this.interval = this.labelIntervalLengths[this.labelScaleLevel];
+    this.interval = this.intervalLengths[this.labelScaleLevel];
     this.lowerInterval = this.labelScaleLevel === 0 ?
-      0 : this.labelIntervalLengths[this.labelScaleLevel - 1];
-    const curScale = 0.5 * Math.pow(2, this.scale);
+      0 : this.intervalLengths[this.labelScaleLevel - 1];
+    const curScale = this.transformScale();
     const unit = (this.verticalLayout ? this.unitHeight : this.unitWidth) * curScale;
 
     let maxValue = this.verticalLayout ?
       this.maxLabelHeight > 0 ? this.maxLabelHeight : this.preSetMaxHeight :
-      this.maxLabelWidth > 0 ? this.maxLabelWidth : this.preSetMaxWidth;
-    maxValue *= 0.8;
+      (this.maxLabelWidth > 0 ? this.maxLabelWidth : this.preSetMaxWidth) * 0.8;
 
     if (this.interval * unit < maxValue) {
       while (this.interval * unit < maxValue) {
         this.labelScaleLevel++;
-        this.interval = this.labelIntervalLengths[this.labelScaleLevel];
-        this.lowerInterval = this.labelIntervalLengths[this.labelScaleLevel - 1];
+        this.interval = this.intervalLengths[this.labelScaleLevel];
+        this.lowerInterval = this.intervalLengths[this.labelScaleLevel - 1];
       }
     } else {
       while (this.lowerInterval * unit > maxValue && this.interval * unit >= maxValue) {
         this.labelScaleLevel--;
-        this.interval = this.labelIntervalLengths[this.labelScaleLevel];
+        this.interval = this.intervalLengths[this.labelScaleLevel];
         this.lowerInterval = this.labelScaleLevel === 0 ?
-          0 : this.labelIntervalLengths[this.labelScaleLevel - 1];
+          0 : this.intervalLengths[this.labelScaleLevel - 1];
       }
     }
 
+    this.labelScaleLevel = Math.min(this.labelScaleLevel, this.intervalLengths.length - 1);
     this.tickScaleLevel = Math.max(this.labelScaleLevel - 1, 0);
   }
+
 }

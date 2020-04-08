@@ -1,10 +1,9 @@
 import { BasicAxisStore, IBasicAxisStoreOptions } from "./basic-axis-store";
-import { Vec2, LabelInstance } from "deltav";
-import { Bucket } from "./bucket";
 
 export interface ILabelAxisStoreOptions<T extends string> extends IBasicAxisStoreOptions<T> {
   labels: string[];
   maxLabelLength?: number;
+  childrenNumber?: number;
 }
 
 export class LabelAxisStore<T extends string> extends BasicAxisStore<string> {
@@ -12,12 +11,19 @@ export class LabelAxisStore<T extends string> extends BasicAxisStore<string> {
   preInterval: number = 1;
   labels: string[];
   maxLabelLength: number = 10;
+  childrenNumber: number;
 
-  constructor(options: ILabelAxisStoreOptions<string>) {
+  tickScaleLevel: number;
+  labelScaleLevel: number;
+  preTickScaleLevel: number;
+  preLabelScaleLevel: number;
+  intervalLengths: number[];
+
+  constructor(options: ILabelAxisStoreOptions<T>) {
     super(options);
   }
 
-  initIndexRange(options: ILabelAxisStoreOptions<string>) {
+  initIndexRange(options: ILabelAxisStoreOptions<T>) {
     this.labels = options.labels;
     this.maxLabelLength = options.maxLabelLength || this.maxLabelLength;
     this.unitNumber = this.labels.length;
@@ -28,6 +34,15 @@ export class LabelAxisStore<T extends string> extends BasicAxisStore<string> {
     this.unitWidth = this.view.size[0] / this.unitNumber;
     this.unitHeight = this.view.size[1] / this.unitNumber;
     this.indexRange = [0, this.unitNumber - 1];
+
+    this.childrenNumber = options.childrenNumber || 2;
+
+    this.labelScaleLevel = 0;
+    this.preLabelScaleLevel = 0;
+    this.tickScaleLevel = 0;
+    this.preTickScaleLevel = 0;
+
+    this.generateIntervalLengths();
   }
 
   getPreSetWidth() {
@@ -54,224 +69,110 @@ export class LabelAxisStore<T extends string> extends BasicAxisStore<string> {
     return "";
   }
 
-  layoutHorizon() {
-    const {
-      higherInterval,
-      interval,
-      lowerInterval,
-      maxLabelWidth,
-      preSetMaxWidth,
-      scale,
-      unitWidth,
-      view
-    } = this;
+  generateIntervalLengths() {
+    this.intervalLengths = [];
+    this.intervalLengths.push(1);
 
-    const origin = view.origin;
-    const curScale = 0.5 * Math.pow(2, scale);
-    const maxBucketWidth = maxLabelWidth === 0 ? preSetMaxWidth : maxLabelWidth;
+    let level = Math.floor(Math.log2(this.unitNumber) / Math.log2(this.childrenNumber));
+    let interval = 1;
 
-    const lowerScale = maxBucketWidth / (unitWidth * interval);
-    const higherScale = lowerInterval === 0 ?
-      maxBucketWidth / (unitWidth * interval * 0.5) :
-      maxBucketWidth / (unitWidth * lowerInterval);
-    const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
-    const alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
-
-    const start = Math.ceil(this.indexRange[0] / interval) * interval;
-    const end = Math.floor(this.indexRange[1] / interval) * interval;
-    const unitW = unitWidth * curScale;
-
-    for (let i = start; i <= end; i += interval) {
-      let labelAlpha = alpha < 0.5 ? alpha * 2 : 1.0;
-      const x = origin[0] + (i + 0.5) * unitW + this.offset;
-      if (i % higherInterval === 0) labelAlpha = 1;
-      this.setBucket(i, [x, origin[1]], labelAlpha);
+    while (level > 0) {
+      interval *= this.childrenNumber;
+      this.intervalLengths.push(interval);
+      level--;
     }
   }
 
-  layoutVertical() {
-    const {
-      higherInterval,
-      interval,
-      lowerInterval,
-      maxLabelHeight,
-      preSetMaxHeight,
-      scale,
-      unitHeight,
-      view
-    } = this;
+  getIndexLevel(index: number) {
+    if (index === 0) return Math.floor(Math.log2(this.unitNumber) / Math.log2(this.childrenNumber));
+    let level = 0;
 
-    const curScale = 0.5 * Math.pow(2, scale);
-    const maxBucketHeight = maxLabelHeight === 0 ? preSetMaxHeight : maxLabelHeight;
-
-    const lowerScale = maxBucketHeight / (unitHeight * interval);
-    const higherScale = lowerInterval === 0 ?
-      maxBucketHeight / (unitHeight * interval * 0.5) :
-      maxBucketHeight / (unitHeight * lowerInterval);
-    const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
-    const alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
-
-    const unitH = unitHeight * curScale;
-    const origin = view.origin;
-
-    const start = Math.ceil(this.indexRange[0] / interval) * interval;
-    const end = Math.floor(this.indexRange[1] / interval) * interval;
-
-    for (let i = start; i <= end; i += interval) {
-      let labelAlpha = alpha < 0.5 ? alpha * 2 : 1.0;
-      const y = origin[1] - (i + 0.5) * unitH - this.offset;
-      if (i % higherInterval === 0) labelAlpha = 1;
-      this.setBucket(i, [origin[0], y], labelAlpha);
+    while (index % this.childrenNumber === 0) {
+      index = index / this.childrenNumber;
+      level++;
     }
+
+    return level;
   }
 
-  posToDomain(pos: number): T {
-    const maxRange = this.maxRange;
-    pos = Math.min(Math.max(pos, maxRange[0]), maxRange[1]);
-    const curScale = 0.5 * Math.pow(2, this.scale);
-    const unit = curScale * (this.verticalLayout ? this.unitHeight : this.unitWidth);
-    let index = Math.floor((pos - maxRange[0]) / unit);
-    index = Math.min(index, this.labels.length - 1);
-    return this.labels[index] as T;
-  }
+  getIndices(start: number, end: number, lowerLevel: number, higherLevel?: number) {
+    const indices: number[] = [];
+    const maxLevel = Math.floor(Math.log2(this.unitNumber) / Math.log2(this.childrenNumber));
+    higherLevel = higherLevel || maxLevel;
 
-  removeBuckets(start: number, end: number) {
-    const interval = this.preInterval;
-    const s = Math.ceil(start / interval) * interval;
-    const e = Math.floor(end / interval) * interval;
+    for (let level = lowerLevel; level <= higherLevel; level++) {
+      // this.getIndicesAtLevel(start, end, level, indices);
+      const interval = this.intervalLengths[level];
+      const higherInterval = interval * this.childrenNumber;
+      start = Math.ceil(start / interval) * interval;
+      end = Math.floor(end / interval) * interval;
 
-    for (let i = s; i <= e; i += interval) {
-      if (this.bucketMap.has(i)) {
-        const bucket = this.bucketMap.get(i);
-
-        if (bucket.showLabels) {
-          bucket.showLabels = false;
-          if (bucket.mainLabel) this.providers.labels.remove(bucket.mainLabel);
-          if (bucket.subLabel) this.providers.labels.remove(bucket.subLabel);
-        }
-
-        if (bucket.showTick) {
-          bucket.showTick = false;
-          this.providers.ticks.remove(bucket.tick);
-        }
+      for (let i = start; i <= end; i += interval) {
+        if (i == 0 && level === this.intervalLengths.length - 1) indices.push(i)
+        else if (i % higherInterval !== 0) indices.push(i);
       }
     }
+
+    return indices;
   }
 
-  removeBucketsAtLowerLevels(start: number, end: number) {
-    if (this.preInterval < this.interval) {
-      this.removeBuckets(start, end);
-    }
-  }
-
-  setBucket(index: number, position: Vec2, alpha: number) {
-    const {
-      labelPadding,
-    } = this;
-
-    const labelAlpha = alpha > 0.4 ? (alpha - 0.4) * 5 / 3 : 0;
-    const tickAlpha = alpha;
-
-    const inViewRange = this.verticalLayout ?
-      window.innerHeight - position[1] >= this.viewRange[0] &&
-      window.innerHeight - position[1] <= this.viewRange[1] :
-      position[0] >= this.viewRange[0] && position[0] <= this.viewRange[1];
-
-    if (inViewRange) {
-      if (this.bucketMap.has(index)) {
-        const bucket = this.bucketMap.get(index);
-
-        if (bucket.mainLabel) {
-          bucket.updateMainLabel(position, labelAlpha, labelPadding, this.verticalLayout);
-        }
-
-        if (bucket.tick) {
-          bucket.updateTick(position, tickAlpha, this.verticalLayout);
-        }
-
-        if (!bucket.showLabels) {
-          bucket.showLabels = true;
-          this.providers.labels.add(bucket.mainLabel);
-        }
-
-        if (!bucket.showTick) {
-          bucket.showTick = true;
-          this.providers.ticks.add(bucket.tick);
-        }
-      } else {
-        const text = this.getMainLabel(index);
-        const bucket: Bucket = new Bucket({
-          labelColor: this.labelColor,
-          labelFontSize: this.labelSize,
-          tickLength: this.tickLength,
-          tickWidth: this.tickWidth,
-          onMainLabelInstance: this.mainLabelHandler,
-          onSubLabelInstance: this.subLabelHandler,
-          onTickInstance: this.tickHandler
-        })
-
-        bucket.createMainLabel(
-          text, position, alpha, labelPadding, this.verticalLayout, this.onLabelReady
-        )
-
-        bucket.createTick(position, alpha, this.verticalLayout);
-        this.bucketMap.set(index, bucket);
-        this.providers.labels.add(bucket.mainLabel);
-        this.providers.ticks.add(bucket.tick);
-
-      }
-    } else {
-      if (this.bucketMap.has(index)) {
-        const bucket = this.bucketMap.get(index);
-
-        if (bucket.showLabels) {
-          bucket.showLabels = false;
-          this.providers.labels.remove(bucket.mainLabel);
-        }
-
-        if (bucket.showTick) {
-          bucket.showTick = false;
-          this.providers.ticks.remove(bucket.tick);
-        }
-      }
-    }
-  }
-
-  async setAtlasLabel() {
-    const letters = "ABCEDFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%^&*()_+-=[]:;'<>,.";
-    let letterCombination = "";
-
-    for (let i = 0; i < letters.length; i++) {
-      for (let j = 0; j < letters.length; j++) {
-        letterCombination += letters[i] + letters[j];
-      }
-    }
-    await this.labelReady(letterCombination);
-  }
-
-  updateInterval() {
-    this.preInterval = this.interval;
-    const curScale = 0.5 * Math.pow(2, this.scale);
-    const unit = (this.verticalLayout ? this.unitHeight : this.unitWidth) * curScale;
-    const maxValue = this.verticalLayout ?
+  getAlphas() {
+    const maxBucketSize = this.verticalLayout ?
       this.maxLabelHeight === 0 ? this.preSetMaxHeight : this.maxLabelHeight :
       this.maxLabelWidth === 0 ? this.preSetMaxWidth : this.maxLabelWidth;
 
-    if (this.interval * unit < maxValue) {
-      while (this.interval * unit < maxValue) {
-        this.interval *= 2;
-        this.lowerInterval = this.interval / 2;
-      }
-    } else {
-      while (
-        this.lowerInterval * unit >= maxValue &&
-        this.interval * unit >= maxValue
-      ) {
-        this.interval /= 2;
-        this.lowerInterval = this.interval === 1 ? 0 : this.interval / 2;
+    const unit = this.verticalLayout ? this.unitHeight : this.unitWidth;
+
+    const curScale = this.transformScale();
+    const labelLowerScale = maxBucketSize / (unit * this.interval);
+    const labelHigherScale = Math.min(
+      this.verticalLayout ? 10 * labelLowerScale : 1.2 * labelLowerScale,
+      maxBucketSize / (this.unitWidth * this.lowerInterval)
+    );
+    const labelAlphaScale = Math.min(Math.max(curScale, labelLowerScale), labelHigherScale);
+    const labelAlpha = (labelAlphaScale - labelLowerScale) / (labelHigherScale - labelLowerScale);
+    const tickAlpha = this.labelScaleLevel === 0 ? 1 : labelAlpha;
+
+    return {
+      labelAlpha,
+      tickAlpha
+    }
+  }
+
+  getMaxLevel() {
+    return this.intervalLengths.length - 1;
+  }
+
+  posToDomain(pos: number): string {
+    const maxRange = this.maxRange;
+    pos = Math.min(Math.max(pos, maxRange[0]), maxRange[1]);
+    const curScale = this.transformScale();
+    const unit = curScale * (this.verticalLayout ? this.unitHeight : this.unitWidth);
+    let index = Math.floor((pos - maxRange[0]) / unit);
+    index = Math.min(index, this.labels.length - 1);
+    return this.labels[index];
+  }
+
+  async setAtlasLabel() {
+    let letterCombination = "";
+    const set: Set<string> = new Set<string>();
+
+    for (let i = 0; i < this.labels.length; i++) {
+      const label = this.labels[i];
+
+      for (let j = 0; j < label.length - 1; j++) {
+        const comb = label.substr(j, 2);
+
+        if (!set.has(comb)) {
+          letterCombination += comb;
+          set.add(comb);
+        }
       }
     }
 
-    this.higherInterval = this.interval * 2;
+    set.clear();
+
+    await this.labelReady(letterCombination);
   }
+
 }
