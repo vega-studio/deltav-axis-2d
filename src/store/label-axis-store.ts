@@ -1,23 +1,18 @@
 import { BasicAxisStore, IBasicAxisStoreOptions } from "./basic-axis-store";
 
 export interface ILabelAxisStoreOptions<T extends string> extends IBasicAxisStoreOptions<T> {
+  /** Sets the labels to show for the axis */
   labels: string[];
+  /** Sets the max amount of letters in a label */
   maxLabelLength?: number;
+  /** Sets the number of children buckets in each bucket to fade in when zoom in */
   childrenNumber?: number;
 }
 
 export class LabelAxisStore<T extends string> extends BasicAxisStore<string> {
-  higherInterval: number = 2;
-  preInterval: number = 1;
-  labels: string[];
-  maxLabelLength: number = 10;
-  childrenNumber: number;
-
-  tickScaleLevel: number;
-  labelScaleLevel: number;
-  preTickScaleLevel: number;
-  preLabelScaleLevel: number;
-  intervalLengths: number[];
+  private labels: string[];
+  private maxLabelLength: number = 10;
+  private childrenNumber: number;
 
   constructor(options: ILabelAxisStoreOptions<T>) {
     super(options);
@@ -48,11 +43,11 @@ export class LabelAxisStore<T extends string> extends BasicAxisStore<string> {
   getPreSetWidth() {
     let maxLength = 0;
     this.labels.forEach(label => maxLength = Math.max(maxLength, label.length));
-    return maxLength * this.labelSize / 2;
+    return maxLength * this.labelFontSize / 2;
   }
 
   getPreSetHeight() {
-    return this.labelSize;
+    return this.labelFontSize;
   }
 
   getMainLabel(index: number): string {

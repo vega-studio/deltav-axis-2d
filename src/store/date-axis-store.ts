@@ -7,14 +7,16 @@ import { Bucket } from "./bucket";
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export interface IDateAxisStoreOptions<T extends Date> extends IBasicAxisStoreOptions<T> {
+  /** Sets the start date to show in the axis */
   startDate?: Date | string;
+  /** Sets the end date to show in the axis */
   endDate?: Date | string;
 }
 
 export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
-  startDate: Date;
-  endDate: Date;
-  totalYears: number;
+  private startDate: Date;
+  private endDate: Date;
+  private totalYears: number;
 
   constructor(options: IDateAxisStoreOptions<T>) {
     super(options);
@@ -66,11 +68,11 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
   }
 
   getPreSetWidth(): number {
-    return 4 * this.labelSize;
+    return 4 * this.labelFontSize;
   }
 
   getPreSetHeight(): number {
-    return this.labelSize;
+    return this.labelFontSize;
   }
 
   generateIntervalLengths() {
@@ -161,7 +163,7 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
   setLabel(index: number, position: Vec2, alpha: number) {
     const {
       labelPadding,
-      labelSize
+      labelFontSize
     } = this;
 
     const inViewRange = this.verticalLayout ?
@@ -186,10 +188,10 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
         }
 
         if (bucket.subLabel) {
-          bucket.updateSubLabel(position, alpha, labelPadding + labelSize, this.verticalLayout);
+          bucket.updateSubLabel(position, alpha, labelPadding + labelFontSize, this.verticalLayout);
         } else if (!atStartMoment) {
           const text = this.getSubLabel(index);
-          bucket.createSubLabel(text, position, alpha, labelPadding + labelSize, this.verticalLayout)
+          bucket.createSubLabel(text, position, alpha, labelPadding + labelFontSize, this.verticalLayout)
         }
 
         if (!bucket.showLabels) {
@@ -200,7 +202,8 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
       } else {
         const bucket: Bucket = new Bucket({
           labelColor: this.labelColor,
-          labelFontSize: this.labelSize,
+          labelFontSize: this.labelFontSize,
+          tickColor: this.tickColor,
           tickLength: this.tickLength,
           tickWidth: this.tickWidth,
           onMainLabelInstance: this.mainLabelHandler,
@@ -215,7 +218,7 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
           !this.verticalLayout &&
           !atStartMoment
         ) {
-          bucket.createSubLabel(text, position, alpha, labelPadding + labelSize, this.verticalLayout);
+          bucket.createSubLabel(text, position, alpha, labelPadding + labelFontSize, this.verticalLayout);
           this.bucketMap.set(index, bucket);
           this.providers.labels.add(bucket.mainLabel);
           this.providers.labels.add(bucket.subLabel);

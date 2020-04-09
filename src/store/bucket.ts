@@ -1,13 +1,22 @@
 import { EdgeInstance, LabelInstance, Vec2, Vec4, AnchorType } from "deltav";
 
 export interface IBucketOptions {
+  /** Sets the color of labels in the bucket */
   labelColor?: Vec4;
+  /** Sets the fontSize of labels in the bucket */
   labelFontSize?: number;
+  /** Sets the color of the tick in the bucket */
+  tickColor: Vec4;
+  /** Sets the length of thie tick in the bucket */
   tickLength?: number;
+  /** Sets the thickness of tick in the bucket  */
   tickWidth?: number;
-  onTickInstance: (instance: EdgeInstance) => void;
+  /** Callback for the main labelInstance */
   onMainLabelInstance: (instance: LabelInstance) => void;
+  /** Callback for the sub labelInstance */
   onSubLabelInstance: (instance: LabelInstance) => void;
+  /** Callback for the tickInstance */
+  onTickInstance: (instance: EdgeInstance) => void;
 }
 
 
@@ -18,10 +27,11 @@ export class Bucket {
   mainLabel: LabelInstance;
   subLabel: LabelInstance;
 
-  labelColor: Vec4 = [1, 1, 1, 1];
-  labelFontSize: number = 12;
-  tickLength: number = 10;
-  tickWidth: number = 1;
+  private labelColor: Vec4 = [1, 1, 1, 1];
+  private labelFontSize: number = 12;
+  private tickColor: Vec4 = [1, 1, 1, 1];
+  private tickLength: number = 10;
+  private tickWidth: number = 1;
 
   onTickInstance: (instance: EdgeInstance) => void;
   onMainLabelInstance: (instance: LabelInstance) => void;
@@ -30,6 +40,7 @@ export class Bucket {
   constructor(options: IBucketOptions) {
     this.labelColor = options.labelColor || this.labelColor;
     this.labelFontSize = options.labelFontSize || this.labelFontSize;
+    this.tickColor = options.tickColor || this.tickColor;
     this.tickLength = options.tickLength || this.tickLength;
     this.tickWidth = options.tickWidth || this.tickWidth;
     this.onTickInstance = options.onTickInstance;
@@ -88,6 +99,7 @@ export class Bucket {
     verticalLayout: boolean,
   ) {
     const {
+      tickColor,
       tickLength,
       tickWidth
     } = this;
@@ -98,8 +110,8 @@ export class Bucket {
         [position[0] - tickLength, position[1]] :
         [position[0], position[1] + tickLength],
       thickness: [tickWidth, tickWidth],
-      startColor: [1, 1, 1, alpha],
-      endColor: [1, 1, 1, alpha]
+      startColor: [tickColor[0], tickColor[1], tickColor[2], alpha],
+      endColor: [tickColor[0], tickColor[1], tickColor[2], alpha]
     });
 
     this.onTickInstance(this.tick);
@@ -114,9 +126,9 @@ export class Bucket {
     if (this.mainLabel) {
       this.mainLabel.origin = position;
       this.mainLabel.color = [
-        this.labelColor[0],
-        this.labelColor[1],
-        this.labelColor[2],
+        this.mainLabel.color[0],
+        this.mainLabel.color[1],
+        this.mainLabel.color[2],
         alpha
       ];
       this.mainLabel.anchor = {
@@ -135,9 +147,9 @@ export class Bucket {
     if (this.subLabel) {
       this.subLabel.origin = position;
       this.subLabel.color = [
-        this.labelColor[0],
-        this.labelColor[1],
-        this.labelColor[2],
+        this.subLabel.color[0],
+        this.subLabel.color[1],
+        this.subLabel.color[2],
         alpha
       ];
       this.subLabel.anchor = {

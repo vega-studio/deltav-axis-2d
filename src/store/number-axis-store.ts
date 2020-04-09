@@ -2,20 +2,21 @@ import { BasicAxisStore, IBasicAxisStoreOptions } from "./basic-axis-store";
 import { Vec2 } from "deltav";
 
 export interface INumberAxisStoreOptions<T extends number> extends IBasicAxisStoreOptions<number> {
+  /** Sets the number range to show in the axis */
   numberRange: Vec2;
+  /** Sets the difference between every number in the axis */
   numberGap?: number;
+  /** Sets the max length of decimal if a number is a float number */
   decimalLength?: number;
-  /**Defines the number of children at each new level to show when zoom in */
+  /** Sets the number of children buckets in each bucket to fade in when zoom in */
   childrenNumber?: number;
 }
 
 export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
-  higherInterval: number = 2;
-  preInterval: number = 1;
-  numberRange: Vec2;
-  numberGap: number;
-  childrenNumber: number;
-  decimalLength: number;
+  private numberRange: Vec2;
+  private numberGap: number;
+  private childrenNumber: number;
+  private decimalLength: number;
 
   constructor(options: INumberAxisStoreOptions<T>) {
     super(options);
@@ -41,11 +42,11 @@ export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
       this.numberRange[0].toFixed(this.decimalLength) : this.numberRange[0].toString();
     const endString = this.decimalLength !== -1 ?
       this.numberRange[1].toFixed(this.decimalLength) : this.numberRange[1].toString();
-    return Math.max(startString.length, endString.length) * this.labelSize / 2;
+    return Math.max(startString.length, endString.length) * this.labelFontSize / 2;
   }
 
   getPreSetHeight() {
-    return this.labelSize;
+    return this.labelFontSize;
   }
 
   getMainLabel(index: number): string {

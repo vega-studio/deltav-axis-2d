@@ -161,7 +161,7 @@ async function start() {
 
   const names: string[] = [];
   const letters: string[] = ['adabcde', 'bddadfaa', 'ewqc', 'deee', 'eeee', 'daff', 'gdaf', 'h', 'i', 'j', 'k', 'l'];
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 300; i++) {
     const index1 = Math.floor(i / 12);
     const index2 = i % 12;
     names.push(`${letters[index1]}${letters[index2]}`);
@@ -177,53 +177,55 @@ async function start() {
   // Make our axis component
   axis1 = new LabelAxis({
     childrenNumber: 3,
-    view: {
-      origin: [200, 550],
-      size: [1200, 500],
-    },
+    displayRangeLabels: true,
+    labelColor: [1, 0.5, 0, 1],
+    labelFontSize: 22,
+    labelPadding: 15,
     labels: names,
+    maxLabelLength: 10,
     providers: {
       ticks: surface.providers.ticks1,
       labels: surface.providers.labels1
     },
-    labelColor: [1, 0.5, 0, 1],
-    labelSize: 22,
-    labelPadding: 15,
-    maxLabelLength: 10,
-    tickWidth: 2,
+    tickColor: [0.7, 0.0, 0.8, 1.0],
     tickLength: 15,
+    tickWidth: 2,
     verticalLayout: false,
-    displayRangeLabels: true,
-    onDisplayRange: (range: [string, string]) => {
+    view: {
+      origin: [200, 550],
+      size: [1200, 500],
+    },
+    onDisplayRange: (_range: [string, string]) => {
       return ["", ""]
     },
     onMainLabelInstance: (label: LabelInstance) => {
       label.fontSize = 10;
     },
     onTickInstance: (tick: EdgeInstance) => {
-      tick.setColor([Math.random(), Math.random(), Math.random(), 1]);
+      // tick.setColor([Math.random(), Math.random(), Math.random(), 1]);
       tick.setEdgeThickness(2);
     }
   });
 
   axis2 = new NumberAxis({
     childrenNumber: 5,
-    view: {
-      origin: [420, 700],
-      size: [1200, 500],
-    },
+    labelColor: [0, 0.5, 0.8, 1],
+    labelFontSize: 20,
+    labelPadding: 15,
+    numberRange: [-2725120736, -2372919733],
+    numberGap: 0.378745868,
     providers: {
       ticks: surface.providers.ticks2,
       labels: surface.providers.labels2
     },
-    labelColor: [0, 0.5, 0.8, 1],
-    labelSize: 20,
-    labelPadding: 15,
-    tickWidth: 2,
+    tickColor: [0.7, 0.8, 0.0, 1],
     tickLength: 10,
-    numberRange: [-2725120736, -2372919733],
-    numberGap: 0.378745868,
+    tickWidth: 2,
     verticalLayout: false,
+    view: {
+      origin: [420, 700],
+      size: [1200, 500],
+    },
     onDisplayRange: (range: [number, number]) => {
       return [range[0].toExponential(), range[1].toPrecision()]
     },
@@ -233,22 +235,23 @@ async function start() {
   });
 
   axis3 = new DateAxis({
-    view: {
-      origin: [640, 850],
-      size: [1200, 500],
-    },
+    startDate: new Date(2019, 6, 9, 21, 0, 1, 1),
+    endDate: new Date(2029, 6, 10, 21, 59, 0),
+    labelColor: [1, 0, 0.5, 1],
+    labelFontSize: 18,
+    labelPadding: 20,
     providers: {
       ticks: surface.providers.ticks3,
       labels: surface.providers.labels3
     },
-    labelColor: [1, 0, 0.5, 1],
-    labelSize: 18,
-    labelPadding: 20,
-    tickWidth: 1,
+    tickColor: [0, 0.7, 0.8, 1.0],
+    tickWidth: 2,
     tickLength: 10,
-    startDate: new Date(2019, 6, 9, 21, 0, 1, 1),
-    endDate: new Date(2029, 6, 10, 21, 59, 0),
     verticalLayout: false,
+    view: {
+      origin: [640, 850],
+      size: [1200, 500],
+    },
     onDisplayRange: (range: [Date, Date]) => {
       return [range[0].toDateString(), range[1].toDateString()]
     },

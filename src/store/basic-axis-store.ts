@@ -4,83 +4,105 @@ import { HorizonRangeLayout, VerticalRangeLayout, AxisDataType } from "src/types
 import moment from "moment";
 
 export interface IBasicAxisStoreOptions<T extends number | string | Date> {
+  /** Sets whether the axis displays range labels */
+  displayRangeLabels?: boolean;
+  /** Sets the color of labels */
   labelColor?: Color;
+  /** Sets the fontsize of labels */
+  labelFontSize?: number;
+  /** Sets the padding value of labels */
   labelPadding?: number;
-  labelSize?: number; providers?: {
+  /** Sets the provides for ticks and labels */
+  providers?: {
     ticks?: InstanceProvider<EdgeInstance>,
     labels?: InstanceProvider<LabelInstance>
   };
+  /** Indicates whether the axis resize with window size changing  */
   resizeWithWindow?: boolean;
+  /** Sets the color of ticks */
+  tickColor?: Color;
+  /** Sets the length of ticks */
   tickLength?: number;
+  /** Sets the thickness of the ticks */
   tickWidth?: number;
+  /** Indicates the side of range labels in horizon mode. Can be ABOVE or BELOW*/
+  horizonRangeLayout?: HorizonRangeLayout;
+  /** Indicates the side of range labels in vertical mode. Can be LEFT or RIGHT*/
+  verticalRangeLayout?: VerticalRangeLayout;
+  /** Indicates whether the axis layouts in vertical direction */
   verticalLayout?: boolean;
-  displayRangeLabels?: boolean;
-  horizonLayoutRange?: HorizonRangeLayout;
-  verticalLayoutRange?: VerticalRangeLayout;
+  /** Sets the origin and size([width, height]) of the axis*/
   view: {
     origin: Vec2;
     size: Vec2;
   };
+  /** Callback to set range labels */
   onDisplayRange?: (displayRange: [T, T]) => [string, string];
+  /** Callback when the tickInstances are ready */
   onTickInstance?: (instance: EdgeInstance) => void;
+  /** Callback when the main labelInstances are ready */
   onMainLabelInstance?: (instance: LabelInstance) => void;
+  /** Callback when the sub labelInstances are ready */
   onSubLabelInstance?: (instance: LabelInstance) => void;
 }
 
 
 export abstract class BasicAxisStore<T extends number | string | Date> {
-  verticalLayout: boolean = true;
-  resizeWithWindow: boolean = true;
-  displayRangeLabels: boolean = true;
-  horizonLayoutRange: HorizonRangeLayout = HorizonRangeLayout.ABOVE;
-  verticalLayoutRange: VerticalRangeLayout = VerticalRangeLayout.LEFT;
+  // Layout options
+  protected verticalLayout: boolean = true;
+  private resizeWithWindow: boolean = true;
+  private displayRangeLabels: boolean = true;
+  private horizonRangeLayout: HorizonRangeLayout = HorizonRangeLayout.ABOVE;
+  private verticalRangeLayout: VerticalRangeLayout = VerticalRangeLayout.LEFT;
 
   // Axis Metrics
-  view: {
+  protected view: {
     origin: Vec2;
     size: Vec2;
   }
-  windowWidth: number;
-  windowHeight: number;
+  private windowWidth: number;
+  private windowHeight: number;
 
   // Tick Metrics
-  tickWidth: number = 1;
-  tickLength: number = 10;
+  protected tickWidth: number = 1;
+  protected tickLength: number = 10;
+  protected tickColor: Color = [1, 1, 1, 1];
 
   // Label Metrics
-  labelSize: number = 12;
-  labelColor: Color = [0.8, 0.8, 0.8, 1.0];
-  labelPadding: number = 10;
-  maxLabelLength: number = 10;
-  maxLabelWidth: number = 0;
-  maxLabelHeight: number = 0;
-  preSetMaxWidth: number = 0;
-  preSetMaxHeight: number = 0;
+  protected labelFontSize: number = 12;
+  protected labelColor: Color = [0.8, 0.8, 0.8, 1.0];
+  protected labelPadding: number = 10;
+  protected maxLabelWidth: number = 0;
+  protected maxLabelHeight: number = 0;
+  protected preSetMaxWidth: number = 0;
+  protected preSetMaxHeight: number = 0;
 
-  tickScaleLevel: number;
-  labelScaleLevel: number;
-  preTickScaleLevel: number;
-  preLabelScaleLevel: number;
-  intervalLengths: number[];
+  // Levels and intervals
+  protected tickScaleLevel: number;
+  protected labelScaleLevel: number;
+  protected preTickScaleLevel: number;
+  protected preLabelScaleLevel: number;
+  protected intervalLengths: number[];
 
   // View Range
-  maxRange: Vec2;
-  viewRange: Vec2;
-  indexRange: Vec2 = [-1, -1];
-  unitNumber: number = 0;
-  unitWidth: number;
-  unitHeight: number;
-  offset: number = 0;
-  scale: number = 1;
+  protected maxRange: Vec2;
+  protected viewRange: Vec2;
+  protected indexRange: Vec2 = [-1, -1];
+  protected unitNumber: number = 0;
+  protected unitWidth: number;
+  protected unitHeight: number;
+  private offset: number = 0;
+  private scale: number = 1;
+
+  // Private
+  protected bucketMap: Map<number, Bucket> = new Map<number, Bucket>();
+  private auxLines: EdgeInstance[] = [];
+  private headLabel: LabelInstance;
+  private tailLabel: LabelInstance;
 
   // Interval info
-  interval: number = 1;
-  lowerInterval: number = 0;
-
-  bucketMap: Map<number, Bucket> = new Map<number, Bucket>();
-  auxLines: EdgeInstance[] = [];
-  headLabel: LabelInstance;
-  tailLabel: LabelInstance;
+  protected interval: number = 1;
+  protected lowerInterval: number = 0;
 
   providers = {
     ticks: new InstanceProvider<EdgeInstance>(),
@@ -114,7 +136,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
   labelReady = (text: string) => new Promise((resolve) => {
     const atlasLabel = new LabelInstance({
       text,
-      fontSize: this.labelSize,
+      fontSize: this.labelFontSize,
       origin: [-100, -100],
       color: [0, 0, 0, 0],
       onReady: () => {
@@ -127,9 +149,10 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
 
   constructor(options: IBasicAxisStoreOptions<T>) {
     this.view = options.view;
+    this.tickColor = options.tickColor || this.tickColor;
     this.tickWidth = options.tickWidth || this.tickWidth;
     this.tickLength = options.tickLength || this.tickLength;
-    this.labelSize = options.labelSize || this.labelSize;
+    this.labelFontSize = options.labelFontSize || this.labelFontSize;
     this.labelColor = options.labelColor || this.labelColor;
     this.labelPadding = options.labelPadding || this.labelPadding;
     this.verticalLayout = options.verticalLayout !== undefined ?
@@ -138,9 +161,8 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
       options.resizeWithWindow : this.resizeWithWindow;
     this.displayRangeLabels = options.displayRangeLabels !== undefined ?
       options.displayRangeLabels : this.displayRangeLabels;
-    this.horizonLayoutRange = options.horizonLayoutRange || this.horizonLayoutRange;
-    this.verticalLayoutRange = options.verticalLayoutRange || this.verticalLayoutRange;
-
+    this.horizonRangeLayout = options.horizonRangeLayout || this.horizonRangeLayout;
+    this.verticalRangeLayout = options.verticalRangeLayout || this.verticalRangeLayout;
     this.labelScaleLevel = 0;
     this.preLabelScaleLevel = 0;
     this.tickScaleLevel = 0;
@@ -231,41 +253,41 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
 
       const padding =
         this.verticalLayout ?
-          this.verticalLayoutRange === VerticalRangeLayout.LEFT ?
+          this.verticalRangeLayout === VerticalRangeLayout.LEFT ?
             this.labelPadding : this.labelPadding :
-          this.horizonLayoutRange === HorizonRangeLayout.BELOW ?
-            this.labelPadding + 2 * this.labelSize : this.labelPadding;
+          this.horizonRangeLayout === HorizonRangeLayout.BELOW ?
+            this.labelPadding + 2 * this.labelFontSize : this.labelPadding;
 
       const headOrigin: [number, number] =
         this.verticalLayout ?
-          this.verticalLayoutRange === VerticalRangeLayout.LEFT ?
+          this.verticalRangeLayout === VerticalRangeLayout.LEFT ?
             [this.view.origin[0] - padding, this.view.origin[1]] :
             [this.view.origin[0] + padding, this.view.origin[1]] :
-          this.horizonLayoutRange === HorizonRangeLayout.BELOW ?
+          this.horizonRangeLayout === HorizonRangeLayout.BELOW ?
             [this.view.origin[0], this.view.origin[1] + padding] :
             [this.view.origin[0], this.view.origin[1] - padding];
 
       const tailOrigin: [number, number] =
         this.verticalLayout ?
-          this.verticalLayoutRange === VerticalRangeLayout.LEFT ?
+          this.verticalRangeLayout === VerticalRangeLayout.LEFT ?
             [this.view.origin[0] - padding, this.view.origin[1] - this.view.size[1]] :
             [this.view.origin[0] + padding, this.view.origin[1] - this.view.size[1]] :
-          this.horizonLayoutRange === HorizonRangeLayout.BELOW ?
+          this.horizonRangeLayout === HorizonRangeLayout.BELOW ?
             [this.view.origin[0] + this.view.size[0], this.view.origin[1] + padding] :
             [this.view.origin[0] + this.view.size[0], this.view.origin[1] - padding];
 
       const headAnchorType =
         this.verticalLayout ?
-          this.verticalLayoutRange === VerticalRangeLayout.LEFT ?
+          this.verticalRangeLayout === VerticalRangeLayout.LEFT ?
             AnchorType.BottomRight : AnchorType.BottomLeft :
-          this.horizonLayoutRange === HorizonRangeLayout.BELOW ?
+          this.horizonRangeLayout === HorizonRangeLayout.BELOW ?
             AnchorType.TopLeft : AnchorType.BottomLeft;
 
       const tailAnchorType =
         this.verticalLayout ?
-          this.verticalLayoutRange === VerticalRangeLayout.LEFT ?
+          this.verticalRangeLayout === VerticalRangeLayout.LEFT ?
             AnchorType.TopRight : AnchorType.TopLeft :
-          this.horizonLayoutRange === HorizonRangeLayout.BELOW ?
+          this.horizonRangeLayout === HorizonRangeLayout.BELOW ?
             AnchorType.TopRight : AnchorType.BottomRight;
 
       if (this.headLabel) {
@@ -282,7 +304,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
             type: headAnchorType
           },
           color: [1, 1, 1, 0.5],
-          fontSize: this.labelSize,
+          fontSize: this.labelFontSize,
           text: headText,
           origin: headOrigin
         });
@@ -302,7 +324,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
             type: tailAnchorType
           },
           color: [1, 1, 1, 0.5],
-          fontSize: this.labelSize,
+          fontSize: this.labelFontSize,
           text: tailText,
           origin: tailOrigin
         });
@@ -530,7 +552,8 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
       } else {
         const bucket: Bucket = new Bucket({
           labelColor: this.labelColor,
-          labelFontSize: this.labelSize,
+          labelFontSize: this.labelFontSize,
+          tickColor: this.tickColor,
           tickLength: this.tickLength,
           tickWidth: this.tickWidth,
           onMainLabelInstance: this.mainLabelHandler,
@@ -578,7 +601,8 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
       } else {
         const bucket: Bucket = new Bucket({
           labelColor: this.labelColor,
-          labelFontSize: this.labelSize,
+          labelFontSize: this.labelFontSize,
+          tickColor: this.tickColor,
           tickLength: this.tickLength,
           tickWidth: this.tickWidth,
           onMainLabelInstance: this.mainLabelHandler,
