@@ -240,6 +240,7 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
     }
   }
 
+  /** Reset the display date range to [startDate, endDate] */
   setRange(startDate: string | Date, endDate: string | Date) {
     // Update start and end date
     this.startDate = typeof startDate === "string" ? new Date(startDate) : startDate;
@@ -272,7 +273,7 @@ export class DateAxisStore<T extends Date> extends BasicAxisStore<Date> {
     this.initChartMetrics();
     this.updateInterval();
     this.drawAuxilaryLines();
-    this.layoutLabels();
+    this.layout();
   }
 
   async setAtlasLabel() {

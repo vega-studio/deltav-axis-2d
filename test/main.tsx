@@ -202,10 +202,9 @@ async function start() {
       label.fontSize = 10;
     },
     onTickInstance: (tick: EdgeInstance) => {
-      // tick.setColor([Math.random(), Math.random(), Math.random(), 1]);
       tick.setEdgeThickness(2);
     }
-  });
+  })
 
   axis2 = new NumberAxis({
     childrenNumber: 5,
@@ -227,7 +226,7 @@ async function start() {
       size: [1200, 500],
     },
     onDisplayRange: (range: [number, number]) => {
-      return [range[0].toExponential(), range[1].toPrecision()]
+      return [range[0].toLocaleString(), range[1].toPrecision()]
     },
     onTickInstance: (tick: EdgeInstance) => {
       tick.thickness = [3, 3];

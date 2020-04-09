@@ -180,19 +180,32 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.init();
   }
 
+  /** Pre set a hidden string to get glyph info */
   abstract async setAtlasLabel(): Promise<any>;
+  /** Set the mainlabel text format */
   abstract getMainLabel(index: number): string;
+  /** Sets the subLabel text format */
   abstract getSubLabel(index: number): string;
+  /** Sets the preSetWidth for layout and updateInterval*/
   abstract getPreSetWidth(): number;
+  /** Sets the preSetHeight for layout and updateInterval*/
   abstract getPreSetHeight(): number;
+  /**  Returns which level an index is at*/
   abstract getIndexLevel(index: number): number;
+  /** Returns indices from index start to index end between lowerLevel and higherLevel (inclusive) */
   abstract getIndices(start: number, end: number, lowerLevel: number, higherLevel: number): number[];
+  /** Gets labelAlpha and tickAlpha of buckets at current labelLevel */
   abstract getAlphas(): { labelAlpha: number; tickAlpha: number };
+  /** Get max level of an axis */
   abstract getMaxLevel(): number;
+  /** Generate interveal lengths at each level */
   abstract generateIntervalLengths(): void;
+  /** Inits metrics specific in different axis type */
   abstract initIndexRange(options: IBasicAxisStoreOptions<T>): void;
+  /** Return the current value of a bucket at position pos */
   abstract posToDomain(pos: number): T;
 
+  /** Toggle layout mode between horizon and vertical mode */
   changeAxis() {
     this.verticalLayout = !this.verticalLayout;
     this.indexRange = [0, this.unitNumber - 1];
@@ -200,9 +213,10 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.initChartMetrics();
     this.updateInterval();
     this.drawAuxilaryLines();
-    this.layoutLabels();
+    this.layout();
   }
 
+  /** Draw auxilary lines to indicate the bound of axis */
   drawAuxilaryLines() {
     const origin = this.view.origin;
     const size = this.view.size;
@@ -243,6 +257,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     }
   }
 
+  /** Sets the labels at both ends to indicate the current range */
   async getRangeLabels() {
     if (this.displayRangeLabels) {
       const rangeValues: [T, T] =
@@ -341,9 +356,10 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.drawAuxilaryLines();
     this.updateInterval();
     await this.setAtlasLabel();
-    this.layoutLabels();
+    this.layout();
   }
 
+  /** Sets chart metrics */
   initChartMetrics() {
     const origin = this.view.origin;
     const width = this.view.size[0];
@@ -365,6 +381,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.windowHeight = window.innerHeight;
   }
 
+  /** Layout buckets at current levels */
   layoutBuckets() {
     const curScale = this.transformScale();
     const alphas = this.getAlphas();
@@ -398,11 +415,13 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     }
   }
 
-  layoutLabels() {
+  /** Layout buckets and get range labels */
+  layout() {
     this.layoutBuckets();
     this.getRangeLabels();
   }
 
+  /** Callback when label is ready */
   onLabelReady = (label: LabelInstance) => {
     if (label.size[1] > this.maxLabelHeight) {
       this.maxLabelHeight = label.size[1];
@@ -423,6 +442,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     }
   }
 
+  // Remove all the labels and ticks
   removeAll() {
     this.bucketMap.forEach(bucket => {
       if (bucket.showLabels) {
@@ -442,6 +462,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.providers.ticks.clear();
   }
 
+  /** Resize the chart */
   resize() {
     if (this.resizeWithWindow) {
       const newWidth = window.innerWidth;
@@ -464,12 +485,14 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     }
   }
 
+  /** Remove buckets between index from start to end (inclusive) */
   removeBuckets(start: number, end: number) {
     const maxLevel = this.getMaxLevel();
     this.removeLabels(start, end, this.preLabelScaleLevel, maxLevel);
     this.removeTicks(start, end, this.preTickScaleLevel, maxLevel);
   }
 
+  /** Remove buckets which has a lowerLevel than the currentLevel */
   removeBucketsAtLowerLevels(start: number, end: number) {
     if (this.preLabelScaleLevel < this.labelScaleLevel) {
       this.removeLabels(start, end, this.preLabelScaleLevel, this.labelScaleLevel - 1);
@@ -480,6 +503,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     }
   }
 
+  /** Remove labels from index start to end between two levels */
   removeLabels(start: number, end: number, lowerLevel: number, higherLevel?: number) {
     const indices = this.getIndices(start, end, lowerLevel, higherLevel);
 
@@ -498,6 +522,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     }
   }
 
+  /** Remove ticks from index start to end between two levels */
   removeTicks(start: number, end: number, lowerLevel: number, higherLevel?: number) {
     const indices = this.getIndices(start, end, lowerLevel, higherLevel);
     for (let i = 0; i < indices.length; i++) {
@@ -514,6 +539,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     }
   }
 
+  /** Set a new view */
   setView(view: { origin: Vec2, size: Vec2 }) {
     this.view = view;
     this.unitWidth = this.view.size[0] / this.unitNumber;
@@ -526,9 +552,10 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.initChartMetrics();
     this.updateInterval();
     this.drawAuxilaryLines();
-    this.layoutLabels();
+    this.layout();
   }
 
+  /** Set tick's position and alpha at index, update or create a new one */
   setTick(index: number, position: Vec2, alpha: number) {
     const inViewRange = this.verticalLayout ?
       window.innerHeight - position[1] >= this.viewRange[0] && window.innerHeight - position[1] <= this.viewRange[1] :
@@ -578,6 +605,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     }
   }
 
+  /** Set label's position and alpha at index, update or create a new one */
   setLabel(index: number, position: Vec2, alpha: number) {
     const inViewRange = this.verticalLayout ?
       window.innerHeight - position[1] >= this.viewRange[0] && window.innerHeight - position[1] <= this.viewRange[1] :
@@ -636,10 +664,12 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     }
   }
 
+  /** Transform scale from this.scale */
   transformScale() {
     return 0.5 * Math.pow(2, this.scale);
   }
 
+  /** Update current index range */
   updateIndexRange() {
     const curScale = this.transformScale();
     const unit = this.verticalLayout ? this.unitHeight * curScale : this.unitWidth * curScale;
@@ -664,6 +694,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.indexRange = [start, end];
   }
 
+  /** Update the max range of chart */
   updateMaxRange(low: number, high: number, length: number) {
     if (low >= this.viewRange[0] && high <= this.viewRange[1]) {
       low = this.viewRange[0];
@@ -680,9 +711,10 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.offset = this.maxRange[0] - this.viewRange[0];
     this.updateInterval();
     this.updateIndexRange();
-    this.layoutLabels();
+    this.layout();
   }
 
+  /** Update offset when panning the axis */
   updateOffset(offset: Vec3) {
     const lo = this.maxRange[0] + (this.verticalLayout ? -offset[1] : offset[0]);
     const hi = this.maxRange[1] + (this.verticalLayout ? -offset[1] : offset[0]);
@@ -690,6 +722,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.updateMaxRange(lo, hi, range);
   }
 
+  /** Update scale when zooming the axis */
   updateScale(mouse: Vec2, scale: Vec3) {
     const newScale = this.scale + (this.verticalLayout ? scale[1] : scale[0]);
     this.scale = Math.min(Math.max(newScale, 1), Math.log2(2 * this.unitNumber));
@@ -705,6 +738,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.updateMaxRange(low, high, newRange);
   }
 
+  /** Update the current interval to be just bigger than the max value */
   updateInterval() {
     this.preTickScaleLevel = this.tickScaleLevel;
     this.preLabelScaleLevel = this.labelScaleLevel;

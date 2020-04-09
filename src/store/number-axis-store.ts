@@ -137,6 +137,7 @@ export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
     return posScale * (numberRange[1] - numberRange[0]) + numberRange[0];
   }
 
+  /** Reset the display range to [start, end] */
   setRange(start: number, end: number) {
     this.numberRange = [start, end];
     this.unitNumber = Math.floor((this.numberRange[1] - this.numberRange[0]) / this.numberGap) + 1;
@@ -148,7 +149,7 @@ export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
     this.removeAll();
     this.updateInterval();
     this.drawAuxilaryLines();
-    this.layoutLabels();
+    this.layout();
   }
 
   async setAtlasLabel() {
