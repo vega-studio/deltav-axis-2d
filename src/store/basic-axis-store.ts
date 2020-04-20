@@ -175,6 +175,8 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.tickHandler = options.onTickInstance || this.tickHandler;
 
     Object.assign(this.providers, options.providers);
+    // this.providers.labels = options.providers.labels;
+    // this.providers.ticks = options.providers.ticks;
 
     this.initIndexRange(options);
     this.init();

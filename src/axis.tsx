@@ -1,7 +1,7 @@
-import { AxisStore, IAxisStoreOptions } from "./store";
+// import { AxisStore, IAxisStoreOptions } from "./store";
 import { Vec2, Vec3 } from "./types";
 
-export interface IAxisProps extends IAxisStoreOptions { }
+/*export interface IAxisProps extends IAxisStoreOptions { }
 
 export class Axis {
   store: AxisStore;
@@ -26,9 +26,6 @@ export class Axis {
     });
   }
 
-  /**
-   * Shifts the axis by a given amount
-   */
   shift(offset: Vec3) {
     this.store.updateOffset(offset);
   }
@@ -36,4 +33,4 @@ export class Axis {
   zoom(focus: Vec2, deltaScale: Vec3) {
     this.store.updateScale(focus, deltaScale);
   }
-}
+}*/

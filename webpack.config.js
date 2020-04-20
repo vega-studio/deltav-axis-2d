@@ -30,7 +30,7 @@ if (IS_PRODUCTION) {
   console.log('Producing Production Distribution Bundle');
   entry = 'src';
   path = resolve(__dirname, 'dist');
-  library = 'axis-component';
+  library = 'deltav-axis-2d';
   libraryTarget = 'umd';
 
   externals = [

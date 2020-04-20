@@ -1,5 +1,5 @@
 import { InstanceProvider, EdgeInstance, LabelInstance, Color, AnchorType } from "deltav";
-import { AxisDataType, Vec2, Vec3, Bucket } from "src/types";
+import { AxisDataType, Vec2, Vec3 } from "src/types";
 import {
   dateLevel,
   getMomentLevel,
@@ -10,6 +10,16 @@ import {
   getSimpleMomentLevel
 } from "src/util/dateUtil";
 import moment from 'moment';
+
+
+type Bucket = {
+  displayLabel: boolean;
+  displayTick: boolean;
+  tick?: EdgeInstance;
+  label1?: LabelInstance;
+  label2?: LabelInstance;
+  label3?: LabelInstance;
+}
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 

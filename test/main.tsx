@@ -1,5 +1,5 @@
-import { Axis, LabelAxis, NumberAxis, DateAxis } from "src";
-import { AxisDataType } from "src/types";
+import { LabelAxis, NumberAxis, DateAxis } from "src";
+// import { AxisDataType } from "src/types";
 import { AutoEasingMethod, createLayer, createView, View2D, EdgeLayer, LabelLayer, ClearFlags, SimpleEventHandler, IMouseInteraction, BasicSurface, Camera2D, BasicCamera2DController, EdgeType, Vec2, InstanceProvider, EdgeInstance, LabelInstance, createFont, FontMapGlyphType } from "deltav";
 import * as dat from "dat.gui";
 import moment = require("moment");
