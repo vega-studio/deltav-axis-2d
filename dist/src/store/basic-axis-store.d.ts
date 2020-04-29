@@ -2,6 +2,7 @@ import { Color, Vec2, InstanceProvider, EdgeInstance, LabelInstance, Vec3 } from
 import { Bucket } from "./bucket";
 import { HorizonRangeLayout, VerticalRangeLayout } from "src/types";
 export interface IBasicAxisStoreOptions<T extends number | string | Date> {
+    bucketWidth: number;
     /** Sets whether the axis displays range labels */
     displayRangeLabels?: boolean;
     /** Sets the color of labels */

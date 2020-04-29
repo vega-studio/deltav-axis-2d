@@ -4,6 +4,7 @@ import { HorizonRangeLayout, VerticalRangeLayout, AxisDataType } from "src/types
 import moment from "moment";
 
 export interface IBasicAxisStoreOptions<T extends number | string | Date> {
+  bucketWidth: number;
   /** Sets whether the axis displays range labels */
   displayRangeLabels?: boolean;
   /** Sets the color of labels */
@@ -168,6 +169,8 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.tickScaleLevel = 0;
     this.preTickScaleLevel = 0;
     this.intervalLengths = [];
+
+    this.maxLabelWidth = options.bucketWidth;
 
     this.rangeHandler = options.onDisplayRange || this.rangeHandler;
     this.mainLabelHandler = options.onMainLabelInstance || this.mainLabelHandler;
@@ -425,7 +428,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
 
   /** Callback when label is ready */
   onLabelReady = (label: LabelInstance) => {
-    if (label.size[1] > this.maxLabelHeight) {
+    /*if (label.size[1] > this.maxLabelHeight) {
       this.maxLabelHeight = label.size[1];
       if (this.verticalLayout) {
         this.updateInterval();
@@ -441,7 +444,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
         this.updateIndexRange();
         this.layoutBuckets();
       }
-    }
+    }*/
   }
 
   // Remove all the labels and ticks
@@ -752,9 +755,10 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     const curScale = this.transformScale();
     const unit = (this.verticalLayout ? this.unitHeight : this.unitWidth) * curScale;
 
-    let maxValue = this.verticalLayout ?
-      this.maxLabelHeight > 0 ? this.maxLabelHeight : this.preSetMaxHeight :
-      this.maxLabelWidth > 0 ? this.maxLabelWidth : this.preSetMaxWidth;
+    let maxValue = this.verticalLayout ? this.maxLabelHeight : this.maxLabelWidth;
+
+    // this.maxLabelHeight > 0 ? this.maxLabelHeight : this.preSetMaxHeight :
+    // this.maxLabelWidth > 0 ? this.maxLabelWidth : this.preSetMaxWidth;
 
     if (this.interval * unit < maxValue) {
       while (

@@ -68,7 +68,6 @@ export class Bucket {
       onReady: (label: LabelInstance) => {
         if (onLabelReady) onLabelReady(label);
         this.onMainLabelInstance(label);
-        console.warn("call back", this.onMainLabelInstance);
       }
     })
   }

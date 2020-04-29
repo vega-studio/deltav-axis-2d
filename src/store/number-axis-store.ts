@@ -33,7 +33,7 @@ export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
     this.unitWidth = this.view.size[0] / this.unitNumber;
     this.unitHeight = this.view.size[1] / this.unitNumber;
     this.indexRange = [0, this.unitNumber - 1];
-
+    console.warn("init number axis");
     this.generateIntervalLengths();
   }
 
@@ -60,9 +60,10 @@ export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
   }
 
   getAlphas() {
-    const maxBucketSize = this.verticalLayout ?
-      this.maxLabelHeight === 0 ? this.preSetMaxHeight : this.maxLabelHeight :
-      this.maxLabelWidth === 0 ? this.preSetMaxWidth : this.maxLabelWidth;
+    const maxBucketSize = this.verticalLayout ? this.maxLabelHeight : this.maxLabelWidth;
+
+    //this.maxLabelHeight === 0 ? this.preSetMaxHeight : this.maxLabelHeight :
+    //this.maxLabelWidth === 0 ? this.preSetMaxWidth : this.maxLabelWidth;
     const unit = this.verticalLayout ? this.unitHeight : this.unitWidth;
     const curScale = this.transformScale();
     const labelLowerScale = maxBucketSize / (unit * this.interval);
@@ -144,8 +145,8 @@ export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
     this.indexRange = [0, this.unitNumber - 1];
     this.unitWidth = this.view.size[0] / this.unitNumber;
     this.unitHeight = this.view.size[1] / this.unitNumber;
-    this.maxLabelWidth = 0;
-    this.maxLabelHeight = 0;
+    //this.maxLabelWidth = 0;
+    //this.maxLabelHeight = 0;
     this.removeAll();
     this.updateInterval();
     this.drawAuxilaryLines();

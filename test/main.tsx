@@ -183,6 +183,7 @@ async function start() {
     labelPadding: 15,
     labels: names,
     maxLabelLength: 10,
+    bucketWidth: 10,
     providers: {
       ticks: surface.providers.ticks1,
       labels: surface.providers.labels1
@@ -207,6 +208,7 @@ async function start() {
   })
 
   axis2 = new NumberAxis({
+    bucketWidth: 10,
     childrenNumber: 5,
     labelColor: [0, 0.5, 0.8, 1],
     labelFontSize: 20,
@@ -234,6 +236,7 @@ async function start() {
   });
 
   axis3 = new DateAxis({
+    bucketWidth: 10,
     startDate: new Date(2019, 6, 9, 21, 0, 1, 1),
     endDate: new Date(2029, 6, 10, 21, 59, 0),
     labelColor: [1, 0, 0.5, 1],
