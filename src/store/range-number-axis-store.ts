@@ -34,7 +34,7 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
 
       while (
         maxLevel < this.intervalLengths.length &&
-        interval * this.unitWidth < this.maxLabelWidth
+        interval * this.unitWidth <= this.maxLabelWidth
       ) {
         maxLevel++;
         interval = this.intervalLengths[maxLevel];
@@ -46,13 +46,20 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
     return maxLevel;
   }
 
+  getMainLabel(index: number, level?: number) {
+    const interval = this.intervalLengths[level];
+    const number = this.numberRange[0] + index * interval * this.numberGap;
+    if (number % 1 !== 0 && this.decimalLength !== -1) return number.toFixed(this.decimalLength);
+    return number.toString();
+  }
+
   layoutBuckets() {
     const curScale = this.transformScale();
     const alphas = this.getAlphas();
     const labelAlpha = alphas.labelAlpha;
     const tickAlpha = alphas.tickAlpha;
     const origin = this.view.origin;
-    // const maxLevel = this.getMaxLevel();
+    const maxLevel = this.getMaxLevel();
 
     const tickIndices = this.getIndices(
       this.indexRange[0],
@@ -60,7 +67,9 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
       this.labelScaleLevel
     );
 
-    console.log("tickIndices", tickIndices);
+    console.warn("")
+    console.warn("maxLevel", maxLevel, "label Scale", this.labelScaleLevel);
+    this.labelScaleLevel = Math.min(maxLevel, this.labelScaleLevel);
     const interval = this.intervalLengths[this.labelScaleLevel];
     const intWidth = interval * this.unitWidth;
 
@@ -113,7 +122,7 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
           if (bucket.mainLabel) {
             bucket.updateMainLabel(position, alpha, this.labelPadding, this.verticalLayout);
           } else {
-            const text = this.getMainLabel(index);
+            const text = this.getMainLabel(index, this.labelScaleLevel);
             bucket.createMainLabel(text, position, alpha, this.labelPadding, this.verticalLayout, this.onLabelReady);
           }
 
@@ -137,7 +146,7 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
 
 
           bucket.createTick(position, alpha, this.verticalLayout);
-          const text = this.getMainLabel(index);
+          const text = this.getMainLabel(index, this.labelScaleLevel);
           bucket.createMainLabel(
             text,
             position,
@@ -185,24 +194,25 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
   }
 
   getAlphas() {
-    const interval = this.intervalLengths[this.tickScaleLevel];
     const curScale = this.transformScale();
     const maxLevel = this.getMaxLevel();
+    this.labelScaleLevel = Math.min(maxLevel, this.labelScaleLevel);
+    const interval = this.intervalLengths[this.labelScaleLevel];
     let alpha = 1;
 
-    if (this.tickScaleLevel === maxLevel) {
-      const lowerInterval = this.intervalLengths[this.tickScaleLevel - 1];
+    if (this.labelScaleLevel === maxLevel) {
+      const lowerInterval = this.intervalLengths[this.labelScaleLevel - 1];
       const higherScale = this.maxLabelWidth / (lowerInterval * this.unitWidth);
       const lowerScale = 0.9 * higherScale; // this.maxBarWidth / (interval * this.unitWidth);
       const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
       alpha = 1 - (alphaScale - lowerScale) / (higherScale - lowerScale);
-    } else if (this.tickScaleLevel === 0) {
+    } else if (this.labelScaleLevel === 0) {
       const lowerScale = this.maxLabelWidth / (interval * this.unitWidth);
       const higherScale = 1.1 * lowerScale;
       const alphaScale = Math.min(Math.max(curScale, lowerScale), higherScale);
       alpha = (alphaScale - lowerScale) / (higherScale - lowerScale);
     } else {
-      const lowerInterval = this.intervalLengths[this.tickScaleLevel - 1];
+      const lowerInterval = this.intervalLengths[this.labelScaleLevel - 1];
       const higherScale = this.maxLabelWidth / (lowerInterval * this.unitWidth);
       const lowerScale = this.maxLabelWidth / (interval * this.unitWidth);
       const scaleOffset = (higherScale - lowerScale) / 5;
@@ -215,6 +225,7 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
         alpha = 1;
       }
     }
+
     return {
       tickAlpha: alpha,
       labelAlpha: alpha
@@ -242,7 +253,7 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
       }
     }
 
-    if (this.preTickScaleLevel !== this.tickScaleLevel) {
+    if (this.preLabelScaleLevel !== this.labelScaleLevel) {
       // const indices = this.getIndices(start, end, this.preLabelScaleLevel);
       this.removeBuckets(start, end);
     }

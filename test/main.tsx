@@ -208,13 +208,13 @@ async function start() {
   })*/
 
   axis2 = new NumberAxis({
-    bucketWidth: 120,
+    bucketWidth: 100,
     childrenNumber: 10,
     labelColor: [0, 0.5, 0.8, 1],
     labelFontSize: 20,
     labelPadding: 15,
-    numberRange: [-2725120736, -2372919733],
-    numberGap: 0.378745868,
+    numberRange: [1, 1000],
+    numberGap: 1,
     providers: {
       ticks: surface.providers.ticks2,
       labels: surface.providers.labels2
@@ -225,7 +225,7 @@ async function start() {
     verticalLayout: false,
     view: {
       origin: [420, 700],
-      size: [1200, 500],
+      size: [1000, 300],
     },
     onDisplayRange: (range: [number, number]) => {
       return [range[0].toLocaleString(), range[1].toPrecision()]

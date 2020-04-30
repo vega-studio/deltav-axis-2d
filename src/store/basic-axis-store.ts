@@ -190,7 +190,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
   /** Pre set a hidden string to get glyph info */
   abstract async setAtlasLabel(): Promise<any>;
   /** Set the mainlabel text format */
-  abstract getMainLabel(index: number): string;
+  abstract getMainLabel(index: number, level?: number): string;
   /** Sets the subLabel text format */
   abstract getSubLabel(index: number): string;
   /** Sets the preSetWidth for layout and updateInterval*/
