@@ -77,7 +77,7 @@ export declare abstract class BasicAxisStore<T extends number | string | Date> {
     protected unitNumber: number;
     protected unitWidth: number;
     protected unitHeight: number;
-    private offset;
+    protected offset: number;
     private scale;
     protected bucketMap: Map<number, Bucket>;
     private auxLines;

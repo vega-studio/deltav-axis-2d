@@ -11,10 +11,10 @@ export interface INumberAxisStoreOptions<T extends number> extends IBasicAxisSto
     childrenNumber?: number;
 }
 export declare class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
-    private numberRange;
-    private numberGap;
-    private childrenNumber;
-    private decimalLength;
+    protected numberRange: Vec2;
+    protected numberGap: number;
+    protected childrenNumber: number;
+    protected decimalLength: number;
     constructor(options: INumberAxisStoreOptions<T>);
     initIndexRange(options: INumberAxisStoreOptions<T>): void;
     getPreSetWidth(): number;

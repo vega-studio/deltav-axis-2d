@@ -1,9 +1,10 @@
 import { Vec2, Vec3 } from "./types";
-import { INumberAxisStoreOptions, NumberAxisStore } from "./store/number-axis-store";
+import { INumberAxisStoreOptions } from "./store/number-axis-store";
+import { RangeNumberAxisStore } from "./store/range-number-axis-store";
 export interface INumberAxisProps extends INumberAxisStoreOptions<number> {
 }
 export declare class NumberAxis {
-    store: NumberAxisStore<number>;
+    store: RangeNumberAxisStore<number>;
     constructor(props: INumberAxisProps);
     /**
      * Shifts the axis by a given amount
