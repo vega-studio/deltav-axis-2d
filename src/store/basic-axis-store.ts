@@ -92,7 +92,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
   protected unitNumber: number = 0;
   protected unitWidth: number;
   protected unitHeight: number;
-  private offset: number = 0;
+  protected offset: number = 0;
   private scale: number = 1;
 
   // Private
@@ -155,6 +155,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.tickLength = options.tickLength || this.tickLength;
     this.labelFontSize = options.labelFontSize || this.labelFontSize;
     this.labelColor = options.labelColor || this.labelColor;
+
     this.labelPadding = options.labelPadding || this.labelPadding;
     this.verticalLayout = options.verticalLayout !== undefined ?
       options.verticalLayout : this.verticalLayout;
@@ -162,6 +163,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
       options.resizeWithWindow : this.resizeWithWindow;
     this.displayRangeLabels = options.displayRangeLabels !== undefined ?
       options.displayRangeLabels : this.displayRangeLabels;
+
     this.horizonRangeLayout = options.horizonRangeLayout || this.horizonRangeLayout;
     this.verticalRangeLayout = options.verticalRangeLayout || this.verticalRangeLayout;
     this.labelScaleLevel = 0;

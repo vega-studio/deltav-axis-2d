@@ -175,7 +175,7 @@ async function start() {
   console.log('READY');
 
   // Make our axis component
-  axis1 = new LabelAxis({
+  /*axis1 = new LabelAxis({
     childrenNumber: 3,
     displayRangeLabels: true,
     labelColor: [1, 0.5, 0, 1],
@@ -205,11 +205,11 @@ async function start() {
     onTickInstance: (tick: EdgeInstance) => {
       tick.setEdgeThickness(2);
     }
-  })
+  })*/
 
   axis2 = new NumberAxis({
-    bucketWidth: 10,
-    childrenNumber: 5,
+    bucketWidth: 120,
+    childrenNumber: 10,
     labelColor: [0, 0.5, 0.8, 1],
     labelFontSize: 20,
     labelPadding: 15,
@@ -235,7 +235,7 @@ async function start() {
     }
   });
 
-  axis3 = new DateAxis({
+  /*axis3 = new DateAxis({
     bucketWidth: 10,
     startDate: new Date(2019, 6, 9, 21, 0, 1, 1),
     endDate: new Date(2029, 6, 10, 21, 59, 0),
@@ -260,7 +260,7 @@ async function start() {
     onSubLabelInstance: (label: LabelInstance) => {
       label.letterSpacing = 3;
     }
-  });
+  });*/
 
   console.log(axis1 && surface.providers.labels1 === axis1.store.providers.labels);
 }

@@ -13,10 +13,10 @@ export interface INumberAxisStoreOptions<T extends number> extends IBasicAxisSto
 }
 
 export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
-  private numberRange: Vec2;
-  private numberGap: number;
-  private childrenNumber: number;
-  private decimalLength: number;
+  protected numberRange: Vec2;
+  protected numberGap: number;
+  protected childrenNumber: number;
+  protected decimalLength: number;
 
   constructor(options: INumberAxisStoreOptions<T>) {
     super(options);
@@ -33,7 +33,6 @@ export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
     this.unitWidth = this.view.size[0] / this.unitNumber;
     this.unitHeight = this.view.size[1] / this.unitNumber;
     this.indexRange = [0, this.unitNumber - 1];
-    console.warn("init number axis");
     this.generateIntervalLengths();
   }
 
