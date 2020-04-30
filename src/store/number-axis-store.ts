@@ -122,9 +122,11 @@ export class NumberAxisStore<T extends number> extends BasicAxisStore<number> {
       end = Math.floor(end / interval) * interval;
 
       for (let i = start; i <= end; i += interval) {
-        if (i == 0 && level === this.intervalLengths.length - 1) indices.push(i)
+        if (i === 0 && level === this.intervalLengths.length - 1) indices.push(i)
         else if (i % higherInterval !== 0) indices.push(i);
       }
+
+      console.warn("level", level, indices);
     }
 
     return indices;

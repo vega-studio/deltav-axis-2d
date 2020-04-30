@@ -46,20 +46,22 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
     return maxLevel;
   }
 
-  getMainLabel(index: number, level?: number) {
+  /*getMainLabel(index: number, level?: number) {
     const interval = this.intervalLengths[level];
     const number = this.numberRange[0] + index * interval * this.numberGap;
     if (number % 1 !== 0 && this.decimalLength !== -1) return number.toFixed(this.decimalLength);
     return number.toString();
-  }
+  }*/
 
   layoutBuckets() {
     const curScale = this.transformScale();
     const alphas = this.getAlphas();
-    const labelAlpha = alphas.labelAlpha;
+    let labelAlpha = alphas.labelAlpha;
     const tickAlpha = alphas.tickAlpha;
     const origin = this.view.origin;
     const maxLevel = this.getMaxLevel();
+
+    this.labelScaleLevel = Math.min(maxLevel, this.labelScaleLevel);
 
     const tickIndices = this.getIndices(
       this.indexRange[0],
@@ -67,20 +69,23 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
       this.labelScaleLevel
     );
 
-    console.warn("")
+    console.warn("tick indices", tickIndices, this.indexRange);
     console.warn("maxLevel", maxLevel, "label Scale", this.labelScaleLevel);
-    this.labelScaleLevel = Math.min(maxLevel, this.labelScaleLevel);
+
     const interval = this.intervalLengths[this.labelScaleLevel];
     const intWidth = interval * this.unitWidth;
 
     for (let i = 0; i < tickIndices.length; i++) {
       const index = tickIndices[i];
       const level = this.getIndexLevel(index);
+      if (level === maxLevel || level > this.labelScaleLevel) labelAlpha = 1;
       // const alpha = tickAlpha;
       const pos: Vec2 = this.verticalLayout ?
         [origin[0], origin[1] - (index + 0.5) * this.unitHeight * curScale - this.offset] :
-        [origin[0] + index * intWidth * curScale + this.offset, origin[1]];
-      this.setBucket(this.labelScaleLevel, index, pos, tickAlpha);
+        [origin[0] + index * this.unitWidth * curScale + this.offset, origin[1]];
+      // this.setBucket(this.labelScaleLevel, index, pos, labelAlpha);
+      this.setLabel(index, pos, labelAlpha);
+      this.setTick(index, pos, labelAlpha);
     }
 
     /* const labelIndices = this.getIndices(this.indexRange[0], this.indexRange[1], this.labelScaleLevel, maxLevel);
@@ -122,7 +127,7 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
           if (bucket.mainLabel) {
             bucket.updateMainLabel(position, alpha, this.labelPadding, this.verticalLayout);
           } else {
-            const text = this.getMainLabel(index, this.labelScaleLevel);
+            const text = this.getMainLabel(index);
             bucket.createMainLabel(text, position, alpha, this.labelPadding, this.verticalLayout, this.onLabelReady);
           }
 
@@ -146,7 +151,7 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
 
 
           bucket.createTick(position, alpha, this.verticalLayout);
-          const text = this.getMainLabel(index, this.labelScaleLevel);
+          const text = this.getMainLabel(index);
           bucket.createMainLabel(
             text,
             position,
@@ -180,7 +185,7 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
 
   }
 
-  getIndices(start: number, end: number, level: number) {
+  /*getIndices(start: number, end: number, level: number) {
     const indices: number[] = [];
     const interval = this.intervalLengths[level];
     start = Math.floor(start / interval) * interval;
@@ -191,9 +196,9 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
     }
 
     return indices;
-  }
+  }*/
 
-  getAlphas() {
+  /*getAlphas() {
     const curScale = this.transformScale();
     const maxLevel = this.getMaxLevel();
     this.labelScaleLevel = Math.min(maxLevel, this.labelScaleLevel);
@@ -231,7 +236,7 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
       labelAlpha: alpha
     }
 
-  }
+  }*/
 
   updateIndexRange() {
     const curScale = this.transformScale();
@@ -240,6 +245,9 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
     const end = Math.ceil((this.viewRange[1] - this.maxRange[0]) / unit);
     const oldStart = this.indexRange[0];
     const oldEnd = this.indexRange[1];
+
+    console.warn("start", start, "end", end);
+    console.warn("old Start", oldStart, "oldEnd", oldEnd);
 
     if (oldEnd < start || oldStart > end) {
       this.removeBuckets(oldStart, oldEnd);
@@ -253,7 +261,7 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
       }
     }
 
-    if (this.preLabelScaleLevel !== this.labelScaleLevel) {
+    if (this.preLabelScaleLevel < this.labelScaleLevel) {
       // const indices = this.getIndices(start, end, this.preLabelScaleLevel);
       this.removeBuckets(start, end);
     }
@@ -262,21 +270,25 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
 
   removeBuckets(start: number, end: number) {
     const indices = this.getIndices(start, end, this.preLabelScaleLevel);
-    const levelMap = this.bucketLevelMap.get(this.preLabelScaleLevel);
 
-    if (levelMap) {
-      for (let i = 0; i < indices.length; i++) {
-        const index = indices[i];
+    for (let i = 0; i < indices.length; i++) {
+      const index = indices[i];
 
-        if (levelMap.has(index)) {
-          const bucket = levelMap.get(index);
+      if (this.bucketMap.has(index)) {
+        const bucket = this.bucketMap.get(index);
+
+        if (bucket.showLabels) {
           bucket.showLabels = false;
+          if (bucket.mainLabel) this.providers.labels.remove(bucket.mainLabel);
+          if (bucket.subLabel) this.providers.labels.remove(bucket.subLabel);
+        }
+
+        if (bucket.showTick) {
           bucket.showTick = false;
-          this.providers.ticks.remove(bucket.tick);
-          this.providers.labels.remove(bucket.mainLabel);
+          if (bucket.tick) this.providers.ticks.remove(bucket.tick);
         }
       }
     }
-
   }
+
 }
