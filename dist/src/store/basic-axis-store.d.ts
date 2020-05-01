@@ -3,6 +3,7 @@ import { Bucket } from "./bucket";
 import { HorizonRangeLayout, VerticalRangeLayout } from "src/types";
 export interface IBasicAxisStoreOptions<T extends number | string | Date> {
     bucketWidth: number;
+    bucketHeight: number;
     /** Sets whether the axis displays range labels */
     displayRangeLabels?: boolean;
     /** Sets the color of labels */
