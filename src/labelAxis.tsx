@@ -9,6 +9,7 @@ export class LabelAxis {
   constructor(props: ILabelAxisProps) {
     this.store = new LabelAxisStore({
       bucketWidth: props.bucketWidth,
+      bucketHeight: props.bucketHeight,
       childrenNumber: props.childrenNumber,
       displayRangeLabels: props.displayRangeLabels,
       labelColor: props.labelColor,

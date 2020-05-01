@@ -209,6 +209,7 @@ async function start() {
 
   axis2 = new NumberAxis({
     bucketWidth: 100,
+    bucketHeight: 30,
     childrenNumber: 10,
     labelColor: [0, 0.5, 0.8, 1],
     labelFontSize: 20,

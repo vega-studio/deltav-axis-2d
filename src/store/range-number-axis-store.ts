@@ -81,7 +81,7 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
       if (level === maxLevel || level > this.labelScaleLevel) labelAlpha = 1;
       // const alpha = tickAlpha;
       const pos: Vec2 = this.verticalLayout ?
-        [origin[0], origin[1] - (index + 0.5) * this.unitHeight * curScale - this.offset] :
+        [origin[0], origin[1] - index * this.unitHeight * curScale - this.offset] :
         [origin[0] + index * this.unitWidth * curScale + this.offset, origin[1]];
       // this.setBucket(this.labelScaleLevel, index, pos, labelAlpha);
       this.setLabel(index, pos, labelAlpha);
@@ -245,9 +245,6 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
     const end = Math.ceil((this.viewRange[1] - this.maxRange[0]) / unit);
     const oldStart = this.indexRange[0];
     const oldEnd = this.indexRange[1];
-
-    console.warn("start", start, "end", end);
-    console.warn("old Start", oldStart, "oldEnd", oldEnd);
 
     if (oldEnd < start || oldStart > end) {
       this.removeBuckets(oldStart, oldEnd);

@@ -10,6 +10,7 @@ export class NumberAxis {
   constructor(props: INumberAxisProps) {
     this.store = new RangeNumberAxisStore({
       bucketWidth: props.bucketWidth,
+      bucketHeight: props.bucketHeight,
       childrenNumber: props.childrenNumber,
       decimalLength: props.decimalLength,
       displayRangeLabels: props.displayRangeLabels,

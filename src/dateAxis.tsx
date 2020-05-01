@@ -9,6 +9,7 @@ export class DateAxis {
   constructor(props: IDateAxisProps) {
     this.store = new DateAxisStore({
       bucketWidth: props.bucketWidth,
+      bucketHeight: props.bucketHeight,
       startDate: props.startDate,
       endDate: props.endDate,
       displayRangeLabels: props.displayRangeLabels,

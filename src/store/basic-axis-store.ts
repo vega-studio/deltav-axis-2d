@@ -5,6 +5,7 @@ import moment from "moment";
 
 export interface IBasicAxisStoreOptions<T extends number | string | Date> {
   bucketWidth: number;
+  bucketHeight: number;
   /** Sets whether the axis displays range labels */
   displayRangeLabels?: boolean;
   /** Sets the color of labels */
@@ -173,6 +174,7 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.intervalLengths = [];
 
     this.maxLabelWidth = options.bucketWidth;
+    this.maxLabelHeight = options.bucketHeight;
 
     this.rangeHandler = options.onDisplayRange || this.rangeHandler;
     this.mainLabelHandler = options.onMainLabelInstance || this.mainLabelHandler;
