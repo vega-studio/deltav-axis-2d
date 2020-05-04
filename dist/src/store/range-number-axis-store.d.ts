@@ -7,6 +7,10 @@ export declare class RangeNumberAxisStore<T extends number> extends NumberAxisSt
     getMaxLevel(): number;
     layoutBuckets(): void;
     setBucket(level: number, index: number, position: Vec2, alpha: number): void;
+    setView(view: {
+        origin: Vec2;
+        size: Vec2;
+    }): void;
     updateIndexRange(): void;
     removeBuckets(start: number, end: number): void;
 }
