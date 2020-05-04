@@ -173,8 +173,8 @@ export abstract class BasicAxisStore<T extends number | string | Date> {
     this.preTickScaleLevel = 0;
     this.intervalLengths = [];
 
-    this.maxLabelWidth = options.bucketWidth;
-    this.maxLabelHeight = options.bucketHeight;
+    // this.maxLabelWidth = options.bucketWidth;
+    // this.maxLabelHeight = options.bucketHeight;
 
     this.rangeHandler = options.onDisplayRange || this.rangeHandler;
     this.mainLabelHandler = options.onMainLabelInstance || this.mainLabelHandler;

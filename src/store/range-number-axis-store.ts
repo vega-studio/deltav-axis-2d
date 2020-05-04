@@ -16,6 +16,8 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
     this.preSetMaxHeight = this.getPreSetHeight();
     this.unitWidth = this.view.size[0] / (this.unitNumber - 1);
     this.unitHeight = this.view.size[1] / (this.unitNumber - 1);
+    this.maxLabelWidth = this.view.size[0] / this.childrenNumber;
+    this.maxLabelHeight = this.view.size[1] / this.childrenNumber;
     this.indexRange = [0, this.unitNumber - 1];
     this.generateIntervalLengths();
     this.bucketLevelMap = new Map<number, Map<number, Bucket>>();
@@ -43,21 +45,15 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
       if (maxLevel === this.intervalLengths.length) maxLevel--;
     }
 
+    console.warn("interval length", this.intervalLengths);
+
     return maxLevel;
   }
-
-  /*getMainLabel(index: number, level?: number) {
-    const interval = this.intervalLengths[level];
-    const number = this.numberRange[0] + index * interval * this.numberGap;
-    if (number % 1 !== 0 && this.decimalLength !== -1) return number.toFixed(this.decimalLength);
-    return number.toString();
-  }*/
 
   layoutBuckets() {
     const curScale = this.transformScale();
     const alphas = this.getAlphas();
     let labelAlpha = alphas.labelAlpha;
-    const tickAlpha = alphas.tickAlpha;
     const origin = this.view.origin;
     const maxLevel = this.getMaxLevel();
 
@@ -72,8 +68,7 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
     console.warn("tick indices", tickIndices, this.indexRange);
     console.warn("maxLevel", maxLevel, "label Scale", this.labelScaleLevel);
 
-    const interval = this.intervalLengths[this.labelScaleLevel];
-    const intWidth = interval * this.unitWidth;
+    // const interval = this.intervalLengths[this.labelScaleLevel];
 
     for (let i = 0; i < tickIndices.length; i++) {
       const index = tickIndices[i];
@@ -88,17 +83,6 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
       this.setTick(index, pos, labelAlpha);
     }
 
-    /* const labelIndices = this.getIndices(this.indexRange[0], this.indexRange[1], this.labelScaleLevel, maxLevel);
- 
-     for (let i = 0; i < labelIndices.length; i++) {
-       const index = labelIndices[i];
-       const level = this.getIndexLevel(index);
-       const alpha = level >= this.labelScaleLevel + 1 ? 1 : labelAlpha;
-       const pos: Vec2 = this.verticalLayout ?
-         [origin[0], origin[1] - (index + 0.5) * this.unitHeight * curScale - this.offset] :
-         [origin[0] + (index + 0.5) * this.unitWidth * curScale + this.offset, origin[1]];
-       
-     }*/
   }
 
   setBucket(level: number, index: number, position: Vec2, alpha: number) {
@@ -180,9 +164,29 @@ export class RangeNumberAxisStore<T extends number> extends NumberAxisStore<numb
           }
         }
       }
-
     }
+  }
 
+  setView(view: { origin: Vec2, size: Vec2 }) {
+    this.view = view;
+    this.unitWidth = this.view.size[0] / (this.unitNumber - 1);
+    this.unitHeight = this.view.size[1] / (this.unitNumber - 1);
+    this.maxLabelWidth = this.view.size[0] / this.childrenNumber;
+    this.maxLabelHeight = this.view.size[1] / this.childrenNumber;
+    console.warn("MAX label width", this.maxLabelWidth);
+
+    this.indexRange = [0, this.unitNumber - 1];
+    this.lowerInterval = 0;
+    this.interval = 1;
+
+    this.preLabelScaleLevel = 0;
+    this.labelScaleLevel = 0;
+
+    this.removeAll();
+    this.initChartMetrics();
+    this.updateInterval();
+    this.drawAuxilaryLines();
+    this.layout();
   }
 
   /*getIndices(start: number, end: number, level: number) {

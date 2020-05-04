@@ -226,7 +226,7 @@ async function start() {
     verticalLayout: false,
     view: {
       origin: [420, 700],
-      size: [1000, 300],
+      size: [800, 300],
     },
     onDisplayRange: (range: [number, number]) => {
       return [range[0].toLocaleString(), range[1].toPrecision()]
