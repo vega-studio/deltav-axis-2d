@@ -1,4 +1,4 @@
-import { LabelAxis, NumberAxis, DateAxis } from "src";
+import { LabelAxis, NumberAxis, DateAxis, FixedLabelAxis } from "src";
 // import { AxisDataType } from "src/types";
 import { AutoEasingMethod, createLayer, createView, View2D, EdgeLayer, LabelLayer, ClearFlags, SimpleEventHandler, IMouseInteraction, BasicSurface, Camera2D, BasicCamera2DController, EdgeType, Vec2, InstanceProvider, EdgeInstance, LabelInstance, createFont, FontMapGlyphType } from "deltav";
 import * as dat from "dat.gui";
@@ -173,6 +173,24 @@ async function start() {
   buildConsole();
 
   console.log('READY');
+
+  const fixAxis = new FixedLabelAxis({
+    labelColor: [1, 0.5, 0, 1],
+    labelFontSize: 22,
+    labelPadding: 20,
+    labels: letters,
+    providers: {
+      ticks: surface.providers.ticks1,
+      labels: surface.providers.labels1
+    },
+    tickColor: [0.7, 0.0, 0.8, 1.0],
+    tickLength: 15,
+    tickWidth: 2,
+    view: {
+      origin: [200, 550],
+      size: [1200, 500],
+    },
+  });
 
   // Make our axis component
   /*axis1 = new LabelAxis({
