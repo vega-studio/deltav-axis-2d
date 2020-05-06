@@ -78,6 +78,7 @@ export class FixedLabelAxis {
     this.labelFontSize = options.labelFontSize || this.labelFontSize;
     this.labelColor = options.labelColor || this.labelColor;
     this.labelPadding = options.labelPadding || this.labelPadding;
+    this.verticalLayout = options.verticalLayout !== undefined ? options.verticalLayout : this.verticalLayout;
 
     this.labelHandler = options.onLabelInstance || this.labelHandler;
     this.tickHandler = options.onTickInstance || this.tickHandler;
@@ -86,8 +87,8 @@ export class FixedLabelAxis {
     Object.assign(this.labels, options.labels);
 
     const unitNumber = options.labels.length;
-    this.unitWidth = this.view.size[0] / unitNumber;
-    this.unitHeight = this.view.size[1] / unitNumber;
+    this.unitWidth = this.view.size[0] / (unitNumber - 1);
+    this.unitHeight = this.view.size[1] / (unitNumber - 1);
 
     this.layout();
   }
@@ -98,8 +99,8 @@ export class FixedLabelAxis {
 
     for (let i = 0; i < this.labels.length; i++) {
       const pos: Vec2 = this.verticalLayout ?
-        [origin[0], origin[1] - (i + 0.5) * this.unitHeight] :
-        [origin[0] + (i + 0.5) * this.unitWidth, origin[1]];
+        [origin[0], origin[1] - i * this.unitHeight] :
+        [origin[0] + i * this.unitWidth, origin[1]];
 
       const bucket: Bucket = new Bucket({
         labelColor: this.labelColor,
@@ -109,7 +110,7 @@ export class FixedLabelAxis {
         tickWidth: this.tickWidth,
         onMainLabelInstance: this.labelHandler,
         onSubLabelInstance: () => { },
-        onTickInstance: this.tickHandler
+        onTickInstance: this.tickHandler,
       })
 
       const text = this.labels[i];

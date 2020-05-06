@@ -187,9 +187,10 @@ async function start() {
     tickLength: 15,
     tickWidth: 2,
     view: {
-      origin: [200, 550],
-      size: [1200, 500],
+      origin: [420, 550],
+      size: [800, 500],
     },
+    verticalLayout: true
   });
 
   // Make our axis component
